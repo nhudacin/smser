@@ -247,7 +247,7 @@ const Body = ({
                                                 />
                                             </FormControl>
                                             <FormDescription className="">
-                                                You can paste everything your phone will "copy as text" into the above box. It will automatically
+                                                You can paste everything your phone will &quot;copy as text&quot; into the above box. It will automatically
                                                 pull the cell phone numbers from the garbled up text.
                                             </FormDescription>
 
