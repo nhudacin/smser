@@ -70,7 +70,7 @@ const Body = ({
     });
 
     useEffect(() => {
-        if (groupName && garbledText && formattedNumbers) {
+        if (groupName && garbledText && formattedNumbers && image && modelLatency && id) {
             setResponse({
                 image_url: image,
                 model_latency_ms: modelLatency,
@@ -82,7 +82,7 @@ const Body = ({
             form.setValue('garbledText', garbledText);
             form.setValue('formattedNumbers', formattedNumbers);
         }
-    }, [groupName, garbledText, formattedNumbers, id, image, form]);
+    }, [groupName, garbledText, formattedNumbers, id, image, modelLatency, form]);
 
     const handleSubmit = useCallback(
         async (values: GenerateFormValues) => {
