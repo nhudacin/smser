@@ -29,7 +29,7 @@ import { toast, Toaster } from 'react-hot-toast';
 
 const generateFormSchema = z.object({
     groupName: z.string().min(1),
-    garbledText: z.string().min(3),
+    garbledText: z.string(),
     formattedNumbers: z.string().min(9)
 });
 
