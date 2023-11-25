@@ -198,7 +198,7 @@ const Body = ({
                     Making group text management a little easier
                 </p>
                 <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-                    <div className="pointer-events-none flex place-items-center gap-2 p-8 mt-10 lg:pointer-events-auto lg:p-0" >
+                    <div className="pointer-events-none flex place-items-center gap-2 p-8 mt-100 lg:pointer-events-auto lg:p-0" >
                         By{' '}
                         <Image
                             src="/nick.svg"
@@ -211,9 +211,9 @@ const Body = ({
                     </div>
                 </div>
             </div>
-            <div className="flex justify-center items-center flex-col w-full lg:p-0 p-4 sm:mb-28 mb-0">
+            <div className="flex justify-center items-center flex-col w-full lg:p-0 p-4 sm:mb-50">
                 <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 mt-20">
-                    <div className="col-span-1">
+                    <div className="col-span-1 mb-28">
                         <h1 className="text-3xl font-bold mb-10">New SMS Group</h1>
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -317,6 +317,7 @@ const Body = ({
                                             <AlertDescription>{error.message}</AlertDescription>
                                         </Alert>
                                     )}
+
                                 </div>
                             </form>
                         </Form>
