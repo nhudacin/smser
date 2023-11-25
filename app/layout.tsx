@@ -5,7 +5,6 @@ import { Analytics } from '@vercel/analytics/react';
 
 const inter = Inter({ subsets: ['latin'] });
 
-
 let title = 'SMSer';
 let description = 'Group Texts, Easier';
 let url = 'https://www.smser.io';
