@@ -72,7 +72,7 @@ const Body = ({
     });
 
     useEffect(() => {
-        if (groupName && garbledText && formattedNumbers && image && modelLatency && id && smsUrl) {
+        if (groupName && formattedNumbers && image && modelLatency && id && smsUrl) {
             setResponse({
                 image_url: image,
                 model_latency_ms: modelLatency,
@@ -82,8 +82,11 @@ const Body = ({
             setSubmittedURL(smsUrl);
 
             form.setValue('groupName', groupName);
-            form.setValue('garbledText', garbledText);
             form.setValue('formattedNumbers', formattedNumbers);
+
+            if (garbledText) {
+                form.setValue('garbledText', garbledText);
+            }
         }
     }, [groupName, garbledText, formattedNumbers, id, image, modelLatency, smsUrl, form]);
 
@@ -198,7 +201,7 @@ const Body = ({
                     Making group text management a little easier
                 </p>
                 <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-                    <div className="pointer-events-none flex place-items-center gap-2 p-8 mt-100 lg:pointer-events-auto lg:p-0" >
+                    <div className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0" >
                         By{' '}
                         <Image
                             src="/nick.svg"
@@ -299,7 +302,7 @@ const Body = ({
                                     <Button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="inline-flex justify-center max-w-[200px] mx-auto w-full mb-10"
+                                        className="inline-flex justify-center max-w-[200px] mx-auto w-full"
                                     >
                                         {isLoading ? (
                                             <LoadingDots color="white" />
@@ -325,7 +328,7 @@ const Body = ({
                     <div className="col-span-1">
                         {submittedURL && (
                             <>
-                                <h1 className="text-3xl font-bold sm:mb-5 mb-5 mt-5 sm:mt-0 sm:text-center text-left">
+                                <h1 className="text-3xl font-bold sm:mb-5 mb-5 sm:mt-0 sm:text-center text-left">
                                     Your QR Code
                                 </h1>
                                 <div>
@@ -356,6 +359,39 @@ const Body = ({
                                                     >
                                                         ✂️ Share
                                                     </Button>
+                                                </div>
+                                                <div className="flex flex-col justify-center relative h-auto items-center">
+                                                    <p>
+                                                        If you are on a mobile, the mobile link will open up SMS on your phone.
+
+                                                        You can use the Share button to send this to another device or someone or save it for later
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex flex-col justify-center relative h-auto items-center">
+                                                    <p>
+                                                        &nbsp;
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-col justify-center relative h-auto items-center">
+                                                    <p>
+                                                        &nbsp;
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-col justify-center relative h-auto items-center">
+                                                    <p>
+                                                        &nbsp;
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-col justify-center relative h-auto items-center">
+                                                    <p>
+                                                        &nbsp;
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-col justify-center relative h-auto items-center">
+                                                    <p>
+                                                        &nbsp;
+                                                    </p>
                                                 </div>
                                             </>
                                         ) : (
