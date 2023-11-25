@@ -356,7 +356,7 @@ const Body = ({
                                                 variant="outline"
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(
-                                                        `https://smser-nicks-projects-3107867f.vercel.app/new/${id || ''}`,
+                                                        `https://smser.app/new/${id || ''}`,
                                                     );
                                                     toast.success('Link copied to clipboard');
                                                 }}
