@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ['latin'] });
 
 let title = 'SMSer';
 let description = 'Group Texts, Easier';
-let url = 'https://www.smser.io';
-let sitename = 'smser.io';
+let url = 'https://www.smser.app';
+let sitename = 'smser.app';
 
 export const metadata: Metadata = {
   metadataBase: new URL(url),
