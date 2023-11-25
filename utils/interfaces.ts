@@ -36,4 +36,9 @@ export interface SMSUrlResponse {
      * This ID can be used to retrieve the QR code image from the API.
      */
     id: string;
+
+    /**
+    * Used for the mobile link    
+    */
+    sms_url: string;
 }

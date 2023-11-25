@@ -42,6 +42,7 @@ const Body = ({
     garbledText,
     modelLatency,
     id,
+    smsUrl
 }: {
     groupName?: string;
     image?: string;
@@ -49,6 +50,7 @@ const Body = ({
     garbledText?: string;
     modelLatency?: number;
     id?: string;
+    smsUrl?: string;
 }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
@@ -70,26 +72,25 @@ const Body = ({
     });
 
     useEffect(() => {
-        if (groupName && garbledText && formattedNumbers && image && modelLatency && id) {
+        if (groupName && garbledText && formattedNumbers && image && modelLatency && id && smsUrl) {
             setResponse({
                 image_url: image,
                 model_latency_ms: modelLatency,
                 id: id,
+                sms_url: smsUrl
             });
-            setSubmittedURL('no_idea_where_this_is_used');
+            setSubmittedURL(smsUrl);
 
             form.setValue('groupName', groupName);
             form.setValue('garbledText', garbledText);
             form.setValue('formattedNumbers', formattedNumbers);
         }
-    }, [groupName, garbledText, formattedNumbers, id, image, modelLatency, form]);
+    }, [groupName, garbledText, formattedNumbers, id, image, modelLatency, smsUrl, form]);
 
     const handleSubmit = useCallback(
         async (values: GenerateFormValues) => {
             setIsLoading(true);
             setResponse(null);
-            setSubmittedURL('no_idea_where_this_is_used');
-
             try {
                 const request: SMSUrlRequest = {
                     groupName: values.groupName,
@@ -116,6 +117,8 @@ const Body = ({
                 va.track('Generated QR Code', {
                     formattedNumbers: values.formattedNumbers,
                 });
+
+                setSubmittedURL(data.sms_url);
 
                 if (id) {
                     router.refresh()
@@ -327,37 +330,37 @@ const Body = ({
                                 <div>
                                     <div className="flex flex-col justify-center relative h-auto items-center">
                                         {response ? (
-                                            <QrCard
-                                                imageURL={response.image_url}
-                                                time={(response.model_latency_ms / 1000).toFixed(2)}
-                                            />
+                                            <>
+                                                <QrCard
+                                                    imageURL={response.image_url}
+                                                    time={(response.model_latency_ms / 1000).toFixed(2)}
+                                                />
+                                                <div className="flex justify-center gap-5 mt-4 mb-10">
+                                                    <a href={submittedURL}>
+                                                        <button
+                                                            type="button"
+                                                            className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                                                        >
+                                                            Mobile Link
+                                                        </button>
+                                                    </a>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(
+                                                                `https://smser.app/new/${id || ''}`,
+                                                            );
+                                                            toast.success('Link copied to clipboard');
+                                                        }}
+                                                    >
+                                                        ✂️ Share
+                                                    </Button>
+                                                </div>
+                                            </>
                                         ) : (
                                             <div className="relative flex flex-col justify-center items-center gap-y-2 w-[510px] border border-gray-300 rounded shadow group p-2 mx-auto animate-pulse bg-gray-400 aspect-square max-w-full" />
                                         )}
                                     </div>
-                                    {response && (
-                                        <div className="flex justify-center gap-5 mt-4 mb-10">
-                                            <a href={submittedURL}>
-                                                <button
-                                                    type="button"
-                                                    className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                                                >
-                                                    Mobile Link
-                                                </button>
-                                            </a>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(
-                                                        `https://smser.app/new/${id || ''}`,
-                                                    );
-                                                    toast.success('Link copied to clipboard');
-                                                }}
-                                            >
-                                                ✂️ Share
-                                            </Button>
-                                        </div>
-                                    )}
                                 </div>
                             </>
                         )}

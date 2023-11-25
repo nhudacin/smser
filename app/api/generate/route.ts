@@ -81,12 +81,14 @@ export async function POST(request: NextRequest) {
         formattedNumbers: reqBody.formattedNumbers,
         garbledText: reqBody.garbledText,
         model_latency: Math.round(durationMS),
+        smsUrl: smsUrl
     });
 
     const response: SMSUrlResponse = {
         image_url: imageUrl,
         model_latency_ms: Math.round(durationMS),
         id: id,
+        sms_url: smsUrl
     };
 
     return new Response(JSON.stringify(response), {
