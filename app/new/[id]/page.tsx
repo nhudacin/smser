@@ -10,6 +10,7 @@ async function getAllKv(id: string) {
         formattedNumbers?: string;
         garbledText?: string;
         model_latency?: string;
+        smsUrl?: string;
     }>(id);
 
     return data;
@@ -67,6 +68,7 @@ export default async function Results({
             garbledText={data.garbledText}
             modelLatency={Number(data.model_latency)}
             id={params.id}
+            smsUrl={data.smsUrl}
         />
     );
 }
