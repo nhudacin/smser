@@ -1,19 +1,12 @@
-import { kv } from '@vercel/kv';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import Body from '@/components/Body';
+import { getSMSData } from '@/utils/azure';
 
 async function getAllKv(id: string) {
-    const data = await kv.hgetall<{
-        groupName: string;
-        image?: string;
-        formattedNumbers?: string;
-        garbledText?: string;
-        model_latency?: string;
-        smsUrl?: string;
-    }>(id);
-
-    return data;
+    const dataRaw = await getSMSData(id);
+    const dataJson = JSON.parse(dataRaw);
+    return dataJson;
 }
 
 export async function generateMetadata({
