@@ -1,8 +1,8 @@
 import { SMSUrlRequest, SMSUrlResponse } from '@/utils/interfaces';
 import { NextRequest } from 'next/server';
-import { kv } from '@vercel/kv';
 import { nanoid } from '@/utils/utils';
 import qrcode from 'qrcode-generator';
+import { uploadToContainer } from '@/utils/azure';
 
 /**
  * Validates a request object.
@@ -75,14 +75,17 @@ export async function POST(request: NextRequest) {
     const endTime = performance.now();
     const durationMS = endTime - startTime;
 
-    await kv.hset(id, {
+    const formattedData = {
         groupName: reqBody.groupName,
         image: imageUrl,
         formattedNumbers: reqBody.formattedNumbers,
         garbledText: reqBody.garbledText,
         model_latency: Math.round(durationMS),
         smsUrl: smsUrl
-    });
+    }
+
+    // right here is where I think i need to sub this out for blobs
+    await uploadToContainer(id, JSON.stringify(formattedData));
 
     const response: SMSUrlResponse = {
         image_url: imageUrl,
