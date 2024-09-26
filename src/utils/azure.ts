@@ -28,10 +28,11 @@ export async function getSMSData(id: String) {
     return downloaded;
 }
 
-async function streamToBuffer(readableStream: any) {
+// A helper method used to read a Node.js readable stream into a Buffer
+async function streamToBuffer(readableStream: NodeJS.ReadableStream): Promise<Buffer> {
     return new Promise((resolve, reject) => {
-        const chunks = [];
-        readableStream.on("data", (data) => {
+        const chunks: Buffer[] = [];
+        readableStream.on("data", (data: Buffer | string) => {
             chunks.push(data instanceof Buffer ? data : Buffer.from(data));
         });
         readableStream.on("end", () => {
