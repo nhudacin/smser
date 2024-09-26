@@ -28,7 +28,7 @@ CMD \
     if [ -f yarn.lock ]; then yarn dev; \
     elif [ -f package-lock.json ]; then npm run dev; \
     elif [ -f pnpm-lock.yaml ]; then pnpm dev; \
-    else npm run dev; \
+    else npm run start; \
     fi
 
 
