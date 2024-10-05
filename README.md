@@ -14,4 +14,15 @@
 
 `.\build.ps1 RunDev`
 
-* Dummy commit
+## Docker Stuff
+
+```
+docker build . -t smser
+
+# if using container registery
+docker tag smser $registryName.azurecr.io/smser
+az login
+az acr login --name $registryName
+docker push $registryName.azurecr.io/smser
+
+```
