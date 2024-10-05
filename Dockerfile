@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json ./
+COPY ./src/package.json ./
 RUN \
     if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
     elif [ -f package-lock.json ]; then npm ci; \
@@ -12,7 +12,7 @@ RUN \
     fi
 
 
-COPY src .
+COPY ./src/ .
 # COPY public ./public
 # COPY next.config.js .
 # COPY tsconfig.json .
