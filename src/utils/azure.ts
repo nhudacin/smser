@@ -1,7 +1,6 @@
 const { DefaultAzureCredential } = require("@azure/identity");
 const { BlobServiceClient } = require("@azure/storage-blob");
 
-
 // need to obviously move this off local host
 const connString = process.env.BLOB_STORAGE_CONNECTION;
 const blobServiceClient = BlobServiceClient.fromConnectionString(connString);
