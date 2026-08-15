@@ -25,6 +25,61 @@
                 <span asp-validation-for="Input.GroupName" class="validation-message"></span>
             </div>
 
+            @*
+                Photo import. Starts hidden and is revealed by photo-ocr.js, because none
+                of it works without JavaScript — showing a camera button that cannot do
+                anything is worse than not offering one. Everything below still works.
+            *@
+            <div class="field" data-photo hidden>
+                <span class="field-label" id="photo-label">Photo of the roster</span>
+
+                <div class="photo" data-photo-zone role="group" aria-labelledby="photo-label">
+                    <div class="photo-idle" data-photo-idle>
+                        <span class="photo-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14.5 4h-5L8 6H4.5A1.5 1.5 0 0 0 3 7.5v11A1.5 1.5 0 0 0 4.5 20h15a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 19.5 6H16z" />
+                                <circle cx="12" cy="13" r="3.5" />
+                            </svg>
+                        </span>
+
+                        <p class="photo-title">
+                            <span class="on-fine">Drop a photo of the roster here</span>
+                            <span class="on-coarse">Snap the roster and it reads itself</span>
+                        </p>
+                        <p class="photo-or">or</p>
+
+                        <div class="photo-actions">
+                            <button type="button" class="button button-secondary photo-camera" data-photo-take>
+                                Take a photo
+                            </button>
+                            <button type="button" class="button button-secondary" data-photo-choose>
+                                Choose a photo
+                            </button>
+                        </div>
+
+                        <p class="photo-note">
+                            Read on your device — the photo is never uploaded anywhere.
+                        </p>
+                    </div>
+
+                    <div class="photo-busy" data-photo-busy hidden>
+                        <img class="photo-preview" data-photo-preview alt="" />
+                        <div class="photo-progress">
+                            <div class="photo-bar"><span data-photo-bar></span></div>
+                            <p class="photo-status" data-photo-status role="status" aria-live="polite"></p>
+                            <button type="button" class="photo-reset" data-photo-reset hidden>Use a different photo</button>
+                        </div>
+                    </div>
+                </div>
+
+                @* Two inputs, not one. `capture` asks a phone for the camera directly, which
+                   is the point on mobile but takes the photo library away — so the plain
+                   input stays for choosing an existing shot. *@
+                <input type="file" accept="image/*" hidden data-photo-file aria-hidden="true" tabindex="-1" />
+                <input type="file" accept="image/*" capture="environment" hidden data-photo-capture aria-hidden="true" tabindex="-1" />
+            </div>
+
             <div class="field">
                 <label asp-for="Input.RawText">Roster import</label>
                 <textarea asp-for="Input.RawText" rows="6"
@@ -40,7 +95,7 @@
                 @* Route values named explicitly rather than left to the ambient ones, so
                    the formaction stays correct on /new/{id} as well as on /new. *@
                 <button type="submit" asp-page="/New" asp-page-handler="Import" asp-route-id="@Model.Id"
-                        class="button button-secondary">Import</button>
+                        data-photo-import class="button button-secondary">Import</button>
             </div>
 
             @if (Model.ImportMessage is not null)
@@ -111,3 +166,9 @@
         }
     </section>
 </div>
+
+@section Scripts {
+    @* Only on this page. The home page has no photo control and should not pay for the
+       script that drives one; the OCR engine itself is fetched later still, on first use. *@
+    <script src="~/js/photo-ocr.js" asp-append-version="true"></script>
+}

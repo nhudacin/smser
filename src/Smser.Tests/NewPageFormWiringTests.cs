@@ -1,9 +1,5 @@
 using System.Net;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 
 namespace Smser.Tests;
 
@@ -108,52 +104,4 @@ public class NewPageFormWiringTests
 
     private static string Token(string html) =>
         Regex.Match(html, @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""").Groups[1].Value;
-
-    /// <summary>
-    /// The app under test. The storage connection string is a placeholder — none of these
-    /// tests reach storage, and the Azure client is built lazily rather than connected at
-    /// startup, so this boots without Azurite running.
-    /// </summary>
-    private sealed class SmserApp : IDisposable
-    {
-        private readonly WebApplicationFactory<Program> _factory;
-        private readonly HttpClient _client;
-
-        public SmserApp()
-        {
-            _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment(Environments.Development);
-                builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
-                    new Dictionary<string, string?> { ["ConnectionStrings:tables"] = "UseDevelopmentStorage=true" }));
-            });
-
-            _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-            {
-                AllowAutoRedirect = false
-            });
-        }
-
-        public async Task<string> GetPageAsync(string url)
-        {
-            var response = await _client.GetAsync(url);
-            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode, $"GET {url}");
-
-            return await response.Content.ReadAsStringAsync();
-        }
-
-        public async Task<string> PostFormAsync(string url, Dictionary<string, string> fields)
-        {
-            var response = await _client.PostAsync(url, new FormUrlEncodedContent(fields));
-            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode, $"POST {url}");
-
-            return await response.Content.ReadAsStringAsync();
-        }
-
-        public void Dispose()
-        {
-            _client.Dispose();
-            _factory.Dispose();
-        }
-    }
 }
