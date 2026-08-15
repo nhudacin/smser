@@ -36,6 +36,13 @@ builder.AddAzureTableServiceClient("tables");
 builder.Services.AddSingleton<SmsGroupStore>();
 builder.Services.AddSingleton<QrCodeGenerator>();
 
+// Visit auditing. The recorder is a queue the request thread drops entries into; the
+// writer drains it on its own loop, so a page view never waits on a storage write and
+// never fails because of one.
+builder.Services.AddSingleton<VisitLog>();
+builder.Services.AddSingleton<VisitRecorder>();
+builder.Services.AddHostedService<VisitWriter>();
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -107,6 +114,10 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseRateLimiter();
+
+// After the rate limiter, so a blocked flood is not also a logged one, and after
+// forwarded headers, so the address recorded is the visitor's rather than the proxy's.
+app.UseVisitLogging();
 app.MapRazorPages();
 
 // /alive for the platform health probe and /version for deploy smoke tests.
