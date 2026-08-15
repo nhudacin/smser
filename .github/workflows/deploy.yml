@@ -1,0 +1,100 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# id-token is what makes this work without a stored credential: the job asks GitHub for a
+# short-lived OIDC token and trades it for an Azure one. There is no publish profile and
+# no client secret anywhere in this repository or its settings.
+permissions:
+  id-token: write
+  contents: read
+
+# One deploy at a time, and never cancel one in flight — a half-swapped app is worse than
+# a queued one. A newer push waits its turn and wins by arriving second.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      # Tests run on the PR, and again here, because the thing being deployed is the
+      # merge result rather than the branch that was reviewed.
+      - name: Test
+        run: dotnet test --solution src/Smser.slnx --configuration Release
+
+      # SourceRevisionId is what /version reports at runtime. The smoke test below gates
+      # on it, which is the only way to tell the new build from the one it replaces —
+      # the old build answers 200 on every page right through the swap.
+      - name: Publish
+        run: |
+          dotnet publish src/Smser.Web/Smser.Web.csproj \
+            --configuration Release \
+            --output ./publish \
+            -p:SourceRevisionId=${{ github.sha }}
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Names come from secrets rather than being written here, so the public workflow
+      # file says nothing about how the Azure side is laid out.
+      - name: Deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          resource-group-name: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          package: ./publish
+
+      # Polls the public hostname until /version reports the commit that was just built.
+      # "The site returns 200" is not a readiness signal here: so does the build being
+      # replaced, all the way through the swap.
+      - name: Verify the new build is serving
+        run: |
+          set -euo pipefail
+          site="https://smser.temprbac.com"
+
+          for attempt in $(seq 1 40); do
+            live=$(curl -fsS --max-time 10 "$site/version" || echo "unreachable")
+
+            if [ "$live" = "${{ github.sha }}" ]; then
+              echo "::notice::${{ github.sha }} is live after ${attempt} attempt(s)"
+
+              code=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 10 "$site/")
+              alive=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 10 "$site/alive")
+              echo "home $code · alive $alive"
+              [ "$code" = "200" ] && [ "$alive" = "200" ]
+
+              exit 0
+            fi
+
+            echo "attempt ${attempt}: serving ${live}"
+            sleep 15
+          done
+
+          echo "::error::${{ github.sha }} never started serving — the previous build may still be live"
+          exit 1
+
+      - name: Sign out
+        if: always()
+        run: az logout || true
