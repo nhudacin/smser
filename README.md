@@ -1,225 +1,356 @@
-# SMSer
+<div align="center">
+
+# 📱 SMSer
+
+### Group texts, easier.
+
+Paste a roster — however garbled it came off your phone — and get back a link and a
+QR code that open a group message with everyone already in it.
 
 [![CI](https://github.com/nhudacin/smser/actions/workflows/ci.yml/badge.svg)](https://github.com/nhudacin/smser/actions/workflows/ci.yml)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Aspire](https://img.shields.io/badge/.NET%20Aspire-13.4-8A2BE2?logo=dotnet&logoColor=white)](https://learn.microsoft.com/dotnet/aspire/)
+[![Azure](https://img.shields.io/badge/Azure-Table%20Storage-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/storage/tables/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Group texts, easier.
+[Quick start](#-quick-start) · [How it works](#-how-the-parser-works) · [Architecture](#%EF%B8%8F-architecture) · [Samples](samples/) · [Testing](#-testing) · [Contributing](CONTRIBUTING.md)
 
-Paste a roster — however garbled it came off a phone — and get back a link and a QR code
-that open a group message with everyone already in the To: field. Every list is saved
-under a short URL you can come back to, edit and regenerate.
+<img src="docs/images/result.png" alt="A saved SMS group in SMSer, showing the parsed phone numbers on the left and a QR code with a mobile link on the right" width="860">
 
-Rewritten from the original Next.js app as a .NET 10 / ASP.NET Core solution, on the same
-shape as TemprBac: Aspire app host, Razor Pages, Azure Storage, `ServiceDefaults` for
-telemetry, health checks and security headers.
-
-## Layout
-
-| Project | What it is |
-| --- | --- |
-| `src/Smser.AppHost` | .NET Aspire app host. Starts Azurite and the web app together for local dev. |
-| `src/Smser.Web` | The site. Razor Pages, QR generation, rate limiting. |
-| `src/Smser.Library` | Parser, `sms:` link builder, short ids, Table Storage access. No ASP.NET dependency. |
-| `src/Smser.ServiceDefaults` | OpenTelemetry, health checks, `/alive`, `/version`, response security headers. |
-| `src/Smser.Tests` | MSTest, on Microsoft.Testing.Platform. Mostly the parser. |
-| `samples/` | Sample rosters you can paste into the running app. Each is checked against an expected result on every build. |
+</div>
 
 ---
 
-## Getting up and running
+## 🤔 Why
 
-### 1. Install the prerequisites
+You coach a team, run a carpool, or organise a group of parents. You have everyone's
+number — on a printed sheet, in a screenshot, in a forwarded email, or scattered through
+your phone's contacts. You want one group text.
 
-| | Why | Check it worked |
-| --- | --- | --- |
-| [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) | Everything. | `dotnet --version` → `10.0.x` |
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | The app host runs Azurite (the Azure Storage emulator) in a container. | `docker version` |
+Getting there means typing thirty numbers into the To: field without a typo. Your phone's
+"copy as text" gives you something like this:
 
-Docker is only needed for the app-host path. See [running without Docker](#running-without-docker)
-if you would rather not install it.
-
-```powershell
-dotnet --version
-docker version --format '{{.Server.Version}}'
+```text
+#7    Sam Chen         312-555-0147
+#12   Alex Rivera      219-555-0113
+Practice Tue/Thu 6:00pm, Field 3, Gate 12
 ```
 
-### 2. Clone and restore
+SMSer takes that, finds the phone numbers in it, ignores the jersey numbers and the gate
+number and the time, and hands back a QR code. Scan it, and the messaging app opens with
+the whole roster already filled in.
 
-```powershell
+## ✨ Features
+
+| | |
+|---|---|
+| **Paste anything** | Names, jersey numbers, dates, zips, e-mail addresses, OCR noise. The importer finds the phone numbers and ignores the rest. |
+| **Every format** | `(219) 555-0113`, `219.555.0113`, `+1 219 555 0113`, `12195550113`, and a dozen more all collapse to one entry. |
+| **Refuses to guess** | Numbers are checked against real NANP rules. A run of digits is only split when it divides into whole numbers *exactly* — a wrong number here gets texted to a stranger. |
+| **QR code or link** | Scan the code, or tap the mobile link. Both open a group message with everyone in the To: field. |
+| **Shareable, editable** | Every list gets its own short URL. Come back next season, fix a number, regenerate — the link stays the same. |
+| **Works without JavaScript** | Import and Generate are real form posts. The only script on the page is the copy-link button. |
+| **Light and dark** | Theme-aware, and sized for the phone you are actually holding at the game. |
+| **Locked down** | Strict CSP with no `unsafe-inline`, rate limiting, security headers, and no sign-in to leak. |
+
+## 📸 Screenshots
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**The front page**
+
+<img src="docs/images/home.png" alt="The SMSer home page, with the headline 'Group texts, easier', a 'Start a new list' button, and three feature cards">
+
+</td>
+<td width="50%" valign="top">
+
+**Paste the mess, press Import**
+
+<img src="docs/images/import.png" alt="The new-group form with garbled roster text pasted in and a notice reading 'Found 8 numbers'">
+
+Eight numbers found across six lines — two on one line, a duplicate collapsed, an
+extension dropped, an order number and a zip ignored.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Dark mode, same page**
+
+<img src="docs/images/result-dark.png" alt="A saved group rendered in dark mode, with the QR code still on a white plate">
+
+The QR keeps its white plate in dark mode — inverting it would make it unreadable to
+every camera.
+
+</td>
+<td valign="top">
+
+**On the phone it is used from**
+
+<img src="docs/images/mobile.png" alt="A saved group on a narrow mobile viewport, with the QR code and buttons stacked" width="300">
+
+</td>
+</tr>
+</table>
+
+## 🧠 How the parser works
+
+`PhoneNumberParser` is the app. It runs two passes over the pasted text, because the input
+splits into two very different shapes.
+
+```mermaid
+flowchart TD
+    paste["<b>Pasted text</b><br/><i>names · dates · zips · e-mails · jersey numbers · phone numbers</i>"]
+
+    paste --> p1
+    paste --> p2
+
+    p1["<b>Pass 1 · separated numbers</b><br/>regex with digit-boundary guards<br/><i>(219) 555-0113 · 219.555.0113 · +1 219 555 0113</i>"]
+    p2["<b>Pass 2 · run-together digits</b><br/>runs of 12+ digits, which pass 1 cannot match<br/><i>21955501133125550147</i>"]
+
+    p2 --> tile{"Divides into whole<br/>numbers <b>exactly</b>?"}
+    tile -->|yes| split["Split into numbers"]
+    tile -->|no| drop["<b>Drop the run</b><br/><i>a visible gap beats<br/>a plausible wrong number</i>"]
+
+    p1 --> nanp
+    split --> nanp
+    nanp["<b>NANP rules</b><br/>area code and exchange start 2-9<br/>neither is an N11 service code"]
+
+    nanp --> norm["<b>Normalise · dedupe · keep order</b><br/><i>1 + ten digits, first appearance wins</i>"]
+    norm --> out["<b>sms://open?addresses=…</b><br/>then a QR code"]
+
+    style drop fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    style out fill:#dcfce7,stroke:#22c55e,color:#14532d
+```
+
+**The all-or-nothing rule in pass 2 is the part worth understanding.** The obvious
+implementation walks left to right and skips a digit when nothing fits. Given
+`00721955501133125550147` — a roster line whose row number got glued to the front — that
+version skips the two zeros, finds a structurally valid ten-digit window, and emits it. The
+result is a real number that could belong to anyone, saved and then texted, and nothing
+downstream can tell it apart from a number you meant. Requiring an exact tiling removes
+that entire class of answer.
+
+Scope is NANP only (US, Canada, Caribbean). A parser loose enough for arbitrary
+international formats accepts most of the surrounding junk too.
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    user(["📱 Phone or browser"])
+
+    subgraph web["<b>Smser.Web</b> · ASP.NET Core Razor Pages"]
+        pages["<b>Pages</b><br/>/ · /new · /new/{id}"]
+        qr["<b>QrCodeGenerator</b><br/>PNG inlined as a data: URI"]
+        rate["<b>Rate limiter</b> + security headers"]
+    end
+
+    subgraph lib["<b>Smser.Library</b> · no ASP.NET dependency"]
+        parser["<b>PhoneNumberParser</b>"]
+        link["<b>SmsLink</b>"]
+        ids["<b>ShortId</b><br/><i>8 chars · 41.4 bits</i>"]
+        store["<b>SmsGroupStore</b>"]
+    end
+
+    table[("<b>Azure Table Storage</b><br/>rosters<br/><i>Azurite when local</i>")]
+
+    host["<b>Smser.AppHost</b><br/><i>.NET Aspire · starts Azurite + Web together</i>"]
+    defaults["<b>Smser.ServiceDefaults</b><br/><i>OpenTelemetry · /alive · /version · CSP</i>"]
+
+    user --> rate --> pages
+    pages --> parser --> link --> qr
+    pages --> store --> ids
+    store --> table
+    host -.orchestrates.-> web
+    host -.runs.-> table
+    defaults -.shared by.-> web
+```
+
+The parser, the link builder, the ids and the storage contract all live in
+`Smser.Library`, which takes no ASP.NET dependency — so the roster round-trip is testable
+without a host, and a future worker or CLI can reference the same code.
+
+### What a paste actually does
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as You
+    participant W as Smser.Web
+    participant P as PhoneNumberParser
+    participant T as Azure Table
+
+    U->>W: paste roster, press Import
+    W->>P: Parse(pasted text)
+    P-->>W: 8 normalised numbers
+    W-->>U: numbers in the box — nothing saved yet
+    Note over U,W: edit freely; hand edits are re-checked
+    U->>W: press Generate
+    W->>P: Parse(the numbers box)
+    W->>T: insert under a new short id
+    W-->>U: redirect to /new/{id}
+    U->>W: GET /new/{id}
+    W-->>U: QR code + sms: link + share link
+```
+
+## 🚀 Quick start
+
+### Prerequisites
+
+| | Why | Check |
+|---|---|---|
+| [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) | Everything. | `dotnet --version` → `10.0.x` |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | The app host runs Azurite, the Azure Storage emulator, in a container. | `docker version` |
+
+Docker is only needed for the app-host path — see [without Docker](#without-docker).
+
+### Run it
+
+```bash
 git clone https://github.com/nhudacin/smser.git
 cd smser
+
 dotnet restore src/Smser.slnx
-```
-
-### 3. Build
-
-```powershell
-dotnet build src/Smser.slnx
-```
-
-### 4. Run the tests
-
-```powershell
-dotnet test --solution src/Smser.slnx
-```
-
-`--solution` is required — `dotnet test` on this repo goes through Microsoft.Testing.Platform
-(set in `global.json`), which wants the flag rather than a bare path. To run just one
-project, point at the project instead:
-
-```powershell
-dotnet test src/Smser.Tests/Smser.Tests.csproj
-```
-
-This is what CI runs on every pull request, in Release, with `-warnaserror`. The whole
-suite is self-contained — nothing in it reaches storage, and the page-wiring tests boot
-the web app in-process — so it needs neither Docker nor Azurite. See
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
-### 5. Run the app
-
-Make sure Docker Desktop is actually running, then:
-
-```powershell
+dotnet build   src/Smser.slnx
 dotnet run --project src/Smser.AppHost
 ```
 
-Two things come up:
-
 | | URL |
-| --- | --- |
-| The site | <http://localhost:5200> |
-| Aspire dashboard (logs, traces, resource health) | <http://localhost:15200> |
+|---|---|
+| 🌐 The site | <http://localhost:5200> |
+| 📊 Aspire dashboard (logs, traces, health) | <http://localhost:15200> |
 
-The dashboard prints a login URL with a token on it in the console — follow that link
-rather than the bare address, or you will be asked for the token.
+> The dashboard prints a login URL with a token on it in the console — follow that link
+> rather than the bare address, or it will ask you for the token.
 
-`Ctrl-C` in the console stops the web app and the Azurite container together.
+`Ctrl-C` stops the web app and the Azurite container together.
 
-### 6. Try it
+### Try it
 
 1. Open <http://localhost:5200> and click **Start a new list**.
 2. Give it a name.
-3. Open any file in [`samples/`](samples/) and paste it into **Roster import** —
-   `samples/messy-mixed.txt` is the interesting one:
+3. Open [`samples/messy-mixed.txt`](samples/messy-mixed.txt) and paste it into **Roster import**.
+4. Press **Import** — it should find eight numbers.
+5. Press **Generate**. You land on `/new/{id}` with the QR code, and that URL is now a
+   permanent link to the list.
 
-   ```text
-   Carpool list, pasted together from three different places.
+[`samples/`](samples/) has ten more, covering phone contact dumps, forwarded email
+threads, OCR runs with the separators lost, non-NANP numbers, things that only look like
+numbers, and one list long enough to exceed what a QR code can hold.
 
-   Alex 219-555-0113 / Sam 312.555.0147
-   home 415 555 0199, cell 213-555-0188
-   Chris O 310-555-0166 x204
-   Pat Doe 650-555-0143 -- do not text before 9am
-   Duplicate on purpose: (219) 555-0113
-   Two smashed together: 21055501333125550152
-   Not numbers: order 4500123789, zip 46360, 16 seats
-   ```
+### Without Docker
 
-4. Press **Import**. It should find eight numbers — several per line, the extension
-   dropped, the duplicate collapsed, the run-together pair split, and the order number
-   and zip ignored.
-5. Press **Generate**. You land on `/new/{id}` with the QR code and the mobile link, and
-   that URL is now a permanent link to the list.
-
-[`samples/README.md`](samples/README.md) describes the rest. They cover phone
-"copy as text" dumps, forwarded email threads, OCR runs with the separators lost,
-non-NANP numbers, things that only look like numbers, and one list long enough to exceed
-what a QR code can hold. Each is paired with an `.expected` file and checked on every
-build, so they cannot drift away from what the parser does.
-
-### Running without Docker
-
-The web project runs on its own against a locally installed
+Run the web project on its own against a locally installed
 [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite):
 
-```powershell
+```bash
 npm install -g azurite
-azurite            # leave this running in its own terminal
+azurite                             # leave running in its own terminal
+dotnet run --project src/Smser.Web  # in a second terminal
 ```
 
-then, in a second terminal:
-
-```powershell
-dotnet run --project src/Smser.Web
-```
-
-The site comes up on <http://localhost:5200> as before, with no Aspire dashboard.
 `appsettings.Development.json` points the storage client at `UseDevelopmentStorage=true`
-for this path; under the app host that value is overridden from the environment, so both
+for this path. Under the app host that value is overridden from the environment, so both
 ways work without editing anything.
 
 ### Where the data goes
 
-Rosters live in an Azure Table called `rosters`. Under the app host, Azurite keeps that
-table in a named Docker volume (`smser-azurite`), so saved links survive a restart. To
-start from an empty table:
+Rosters live in an Azure Table called `rosters`. Under the app host, Azurite keeps it in a
+named Docker volume so saved links survive a restart. To start from an empty table:
 
-```powershell
+```bash
 docker volume rm smser-azurite
 ```
 
 ### Troubleshooting
 
 | Symptom | Cause |
-| --- | --- |
+|---|---|
 | `docker: error during connect` on startup | Docker Desktop is not running. |
-| Site loads, saving a roster errors | Azurite is still starting. The app host waits for it, so this mostly happens on the standalone path — check the `azurite` terminal. |
-| `dotnet test` says to use `--solution` | You passed the `.slnx` positionally. See step 4. |
+| Site loads, saving a roster errors | Azurite is still starting. The app host waits for it, so this is mostly the standalone path — check the `azurite` terminal. |
+| `dotnet test` says to use `--solution` | You passed the `.slnx` positionally. See [Testing](#-testing). |
 | Port 5200 or 15200 already in use | Change `applicationUrl` in the relevant `Properties/launchSettings.json`. |
-| Copy-link button does nothing | `navigator.clipboard` needs a secure context. It is hidden on plain-http origins that are not localhost — e.g. hitting your dev machine from a phone by LAN IP. |
+| Copy-link button does nothing | `navigator.clipboard` needs a secure context. It is hidden on plain-http origins that are not localhost — e.g. reaching your dev machine from a phone by LAN IP. |
 
----
+## 🧪 Testing
 
-## How the parsing works
+```bash
+dotnet test --solution src/Smser.slnx
+```
 
-`PhoneNumberParser` is the app, and it does two passes over the pasted text:
+`--solution` is required — tests run through Microsoft.Testing.Platform (opted in via
+`global.json`), which wants the flag rather than a bare path.
 
-1. **Separated numbers** — `(219) 555-0113`, `219.555.0113`, `+1 219 555 0113`,
-   `12195550113`. A regex with digit-boundary guards on both ends, so a match is always a
-   whole run of digits rather than a window into a longer one.
-2. **Run-together digits** — `21955501133125550147`, which is what OCR produces when it
-   loses the separators between two contact rows. Pass 1 deliberately cannot match these,
-   so pass 2 takes them — but only splits a run if it divides into valid numbers
-   *exactly*, with nothing left over.
+| Suite | What it covers |
+|---|---|
+| `PhoneNumberParserTests` | Every format, numbers buried in prose, run-together digits, and a long list of things that must **not** parse. |
+| `SampleRosterTests` | Every file in [`samples/`](samples/) against its `.expected` result, plus a guard that no sample yields a number outside the reserved range. |
+| `NewPageFormWiringTests` | Boots the real app and asserts on rendered HTML — the form's `action` and the buttons' `formaction`. |
+| `ShortIdTests` · `SmsLinkTests` · `QrCodeGeneratorTests` | Id keyspace and validation, link format, QR rendering and its capacity ceiling. |
 
-Numbers are checked against real NANP rules (area code and exchange both start 2–9,
-neither is an N11 service code), normalised to `1` + ten digits, deduplicated, and
-returned in the order they appeared.
+The whole suite is self-contained: nothing reaches storage, and the page-wiring tests boot
+the web app in-process. **No Docker, no Azurite.** CI runs exactly this on every pull
+request, in Release, with `-warnaserror`.
 
-The all-or-nothing rule in pass 2 is the one worth knowing about. The obvious alternative
-— walk left to right, skip a digit when nothing fits — turns `00721955501133125550147`
-into a structurally valid number that could belong to anyone: real, textable, and
-indistinguishable downstream from a number the user meant. Dropping the run instead
-leaves a visible gap the user can fix.
+> **Why a test renders HTML.** Generate once silently re-ran the Import handler, because a
+> bare `<form method="post">` posts to the current document URL — which after Import was
+> `/new?handler=Import`. Nothing was saved and no QR appeared, and every unit test passed
+> straight through it. `NewPageFormWiringTests` exists so that cannot happen twice.
 
-Scope is NANP only. A parser loose enough to accept arbitrary international formats
-accepts most of the surrounding junk too.
+## 📁 Project layout
 
-**Every phone number in this repo — tests, docs, placeholders — is in `555-0100`–`555-0199`,
-the block NANPA reserves for fictional use.** Please keep it that way; this is a public
-repo for an app whose whole subject is other people's phone numbers.
+| Path | Role |
+|---|---|
+| `src/Smser.AppHost` | .NET Aspire host. Starts Azurite and the web app together for local dev. |
+| `src/Smser.Web` | The site. Razor Pages, QR generation, rate limiting. |
+| `src/Smser.Library` | Parser, `sms:` link builder, short ids, Table Storage. No ASP.NET dependency. |
+| `src/Smser.ServiceDefaults` | OpenTelemetry, health checks, `/alive`, `/version`, response security headers. |
+| `src/Smser.Tests` | MSTest on Microsoft.Testing.Platform. |
+| `samples/` | Sample rosters, each checked against an expected result on every build. |
 
-## Notes
+**Stack:** .NET 10 · ASP.NET Core Razor Pages · .NET Aspire · Azure Table Storage ·
+QRCoder · MSTest · GitHub Actions.
 
-- **Ids are lowercase.** Routing runs with `LowercaseUrls`, which lowercases generated
-  paths *including route parameter values*, so `ShortId` uses a single-case alphabet.
-  Eight characters of 36 is 41.4 bits — the same keyspace the original got from seven
-  mixed-case ones.
-- **A roster is only as private as its link.** There is no sign-in. That is what the
-  id length and the rate limiter are sized against.
-- **QR codes are generated per request**, not stored. The original kept a base64 PNG in
-  storage next to the numbers, which made every saved list expensive to hold and
-  impossible to fix once a rendering bug shipped.
-- **Lists over ~240 numbers have no QR code.** That is the capacity of a version-40
-  symbol at error correction L. The page shows the link and says so.
-- **No inline styles or scripts.** The CSP in `ServiceDefaults` carries no
-  `'unsafe-inline'`, so everything lives in `wwwroot/css/site.css` and
-  `wwwroot/js/site.js`. Import and Generate are real form posts and work without
-  JavaScript; the only script on the page is the copy-link button.
+## 🔒 Privacy and security
 
-## Deploying to Azure
+This is an app about other people's phone numbers, so a few things are deliberate:
 
-Not wired up yet. The pieces that are in place for it: `/alive` for the health probe,
-`/version` (the commit SHA, from `dotnet publish -p:SourceRevisionId=<sha>`) so a deploy
-smoke test can tell the new build from the one it replaces, HSTS and forwarded-headers
-configuration for running behind a reverse proxy, and an app host whose storage resource
-targets a real account when published rather than the emulator.
+- **A roster is only as private as its link.** There is no sign-in. Ids are 8 characters
+  of a 36-character alphabet — 41.4 bits — and the endpoint is rate limited. That is what
+  makes scanning for other people's lists impractical.
+- **Every phone number in this repo is fictional.** All of them are in `555-0100`–`555-0199`,
+  the block [NANPA reserves](https://nationalnanpa.com/) for fictional use, and
+  `SampleRosterTests` fails the build if a sample ever yields one outside it.
+- **Nothing is stored that does not need to be.** The QR code is regenerated per request
+  rather than kept in storage. There are no analytics and no third-party scripts.
+- **Strict CSP with no `unsafe-inline`.** All styling is in `site.css` and all behaviour in
+  `site.js`, so the policy is one the markup actually honours.
+- **CI audits dependencies** for known advisories, transitive ones included, on every PR.
+
+Found something? See [SECURITY.md](SECURITY.md).
+
+## 🗺️ Roadmap
+
+- [ ] **Deploy to Azure.** The hooks are in place — `/alive` for the health probe,
+      `/version` (the commit SHA, from `dotnet publish -p:SourceRevisionId=<sha>`) so a
+      smoke test can tell the new build from the one it replaces, HSTS and
+      forwarded-headers config for running behind a reverse proxy, and an app host whose
+      storage resource targets a real account when published. There is no infra or
+      pipeline yet.
+- [ ] **Retention.** Rosters are kept forever today. `CreatedTs` exists so a sweep has
+      something to sort on.
+- [ ] **Non-NANP numbers**, if anyone actually wants them.
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The short
+version: `dotnet test --solution src/Smser.slnx` should pass, and any phone number you add
+belongs in `555-0100`–`555-0199`.
+
+## 📄 License
+
+[MIT](LICENSE) © Nick Hudacin

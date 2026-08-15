@@ -1,0 +1,70 @@
+name: 🐛 Bug report
+description: Something behaves differently than it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. If this is a **security** issue, please close this and use
+        [private reporting](https://github.com/nhudacin/smser/security/advisories/new)
+        instead.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: And what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to /new
+        2. Paste ...
+        3. Press Import
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: The text you pasted
+      description: |
+        **Replace every real phone number** with one from `555-0100`–`555-0199` before
+        pasting it here — keep the *shape* of the input (spacing, punctuation, line
+        breaks, run-together digits), because that is almost always what the bug is
+        about. This is a public repo.
+      render: text
+      placeholder: |
+        Alex Rivera    (219) 555-0113
+        Sam Chen       312.555.0147
+    validations:
+      required: false
+
+  - type: input
+    id: numbers
+    attributes:
+      label: Numbers it found
+      description: What came back, versus what you expected.
+      placeholder: found 3, expected 5 — it missed the two on the same line
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Running it locally
+        - Reading the code
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit
+      description: "`git rev-parse --short HEAD`, or the version from `/version`."

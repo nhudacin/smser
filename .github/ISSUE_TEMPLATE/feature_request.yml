@@ -1,0 +1,31 @@
+name: 💡 Idea
+description: Suggest something SMSer should do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SMSer has a narrow job: turn a messy roster into a group text. Ideas that make
+        that easier are very welcome; ideas that turn it into a contacts manager probably
+        belong in a different app.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation you are in, not the feature you have in mind for it.
+      placeholder: I coach two teams and I keep having to work out which saved list is which.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead

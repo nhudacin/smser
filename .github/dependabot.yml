@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  # The CI job that audits for advisories tells you a vulnerable package is present. This
+  # is what opens the PR to fix it. Grouped, because a NuGet bump is rarely interesting on
+  # its own and ten separate PRs a month is how people learn to ignore Dependabot.
+  - package-ecosystem: nuget
+    directory: /src
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      dotnet:
+        patterns:
+          - "Microsoft.*"
+          - "System.*"
+      aspire:
+        patterns:
+          - "Aspire.*"
+      azure:
+        patterns:
+          - "Azure.*"
+      test:
+        patterns:
+          - "MSTest*"
+          - "Microsoft.Testing.*"
+    commit-message:
+      prefix: deps
+
+  # Actions are pinned to major-version tags, so this catches a v4 -> v5 that would
+  # otherwise sit unnoticed until something breaks.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
