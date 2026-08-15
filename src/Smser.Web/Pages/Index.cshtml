@@ -1,0 +1,38 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "SMSer — group texts, easier";
+}
+
+<div class="hero">
+    <h1>Group texts, easier.</h1>
+    <p class="lede">
+        Paste a roster — however garbled it came off your phone — and get back a link
+        and a QR code that open a group message with everyone already in it.
+    </p>
+    <a class="button button-large" href="/new">Start a new list</a>
+</div>
+
+<div class="cards">
+    <section class="card">
+        <h2>Paste anything</h2>
+        <p>
+            Names, jersey numbers, e-mail addresses, whatever the camera's "copy as text"
+            produced. The importer finds the phone numbers in it and ignores the rest.
+        </p>
+    </section>
+    <section class="card">
+        <h2>Scan or tap</h2>
+        <p>
+            Scan the QR code with a phone, or tap the mobile link, and the messaging app
+            opens with the whole list in the To: field.
+        </p>
+    </section>
+    <section class="card">
+        <h2>Keep the link</h2>
+        <p>
+            Every list gets its own short URL. Come back to it next season, fix a number,
+            and regenerate — the link stays the same.
+        </p>
+    </section>
+</div>

@@ -1,0 +1,9 @@
+Order #100045829 shipped 2024-03-14 via tracking 1Z999AA10123456784
+Invoice total $1,234.56 -- net 30, PO 4500123789
+Meet at 1600 Pennsylvania Ave NW, Washington DC 20500
+Office hours 9:00-17:00, ext 4412
+Zip 46360, plus-four 46360-1234
+Serial 8829-4471-9930-1102
+Dial 911 in an emergency, or 411 for directory
+IPv4 192.168.100.145, port 5432
+Roster last synced 1700000000 (unix epoch)
