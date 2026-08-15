@@ -28,6 +28,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # This is what puts the Deployments panel on the repo front page and records a
+    # deployment history against the environment, rather than the run being just another
+    # green tick in the Actions tab.
+    #
+    # It also changes how the job authenticates, which is easy to miss: declaring an
+    # environment switches the OIDC token's subject from
+    # `repo:<owner>/<repo>:ref:refs/heads/main` to
+    # `repo:<owner>/<repo>:environment:production`. A federated credential matching only
+    # the ref form stops working the moment this block is added, and the failure is an
+    # Azure login error rather than anything that mentions environments. Both subjects
+    # are registered on the app.
+    #
+    # Adding required reviewers to this environment in repository settings turns every
+    # deploy into an approval gate, with no change to this file.
+    environment:
+      name: production
+      url: https://smser.temprbac.com
+
     steps:
       - uses: actions/checkout@v7
 
