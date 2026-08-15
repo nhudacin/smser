@@ -1,0 +1,15 @@
+Not NANP, so out of scope:
++44 20 7946 0958        London
++33 1 42 68 53 00       Paris
++61 2 9374 4000         Sydney
+011-44-20-7946-0958     dialled from the US
+
+Structurally impossible, so rejected:
+911-555-0113            N11 area code
+219-411-0113            N11 exchange
+219-113-0113            exchange starts with one
+019-555-0113            area code starts with zero
+123-456-7890            area code starts with one
+555-0113                seven digits, no area code
+219-555-01139           one digit too many
+92195550113             eleven digits with no leading one

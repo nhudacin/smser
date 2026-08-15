@@ -1,0 +1,14 @@
+@page "/error"
+@model ErrorModel
+@{
+    ViewData["Title"] = "Something went wrong — SMSer";
+}
+
+<div class="message-page">
+    <h1>Something went wrong.</h1>
+    <p>An unexpected error occurred. <a href="/">Go back home</a></p>
+    @if (Model.ShowRequestId)
+    {
+        <p class="hint">Request ID: <code>@Model.RequestId</code></p>
+    }
+</div>
