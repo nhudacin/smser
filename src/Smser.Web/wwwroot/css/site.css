@@ -232,3 +232,124 @@ code {
 .message-page { max-width: var(--measure); padding: 48px 0; }
 .message-page h1 { font-size: 1.6rem; margin: 0 0 12px; }
 .message-page p { color: var(--ink-muted); }
+
+/* ── photo import ────────────────────────────────────────────────────────── */
+
+.field-label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: 6px; }
+
+.photo {
+    position: relative;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 28px 20px;
+    text-align: center;
+    transition: border-color .15s, background .15s, transform .15s;
+}
+
+/* Dragging a file over the zone. Also applied on the whole zone rather than an
+   inner element so the border itself responds, which is the part being aimed at. */
+.photo.is-dragging {
+    border-color: var(--accent);
+    border-style: solid;
+    background: var(--notice-bg);
+    transform: scale(1.01);
+}
+
+.photo.is-busy { border-style: solid; border-color: var(--accent); }
+.photo.is-error { border-style: solid; border-color: var(--danger); }
+
+.photo-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    background: var(--notice-bg);
+    color: var(--accent);
+}
+
+.photo-icon svg { width: 24px; height: 24px; }
+
+.photo-title { margin: 0 0 4px; font-weight: 600; font-size: .95rem; }
+
+/* You cannot drop a file on a phone, and you rarely want to hunt for one on a desktop.
+   Each pointer type gets the sentence that matches what it can actually do. */
+.photo-title .on-coarse { display: none; }
+
+@media (pointer: coarse) {
+    .photo-title .on-fine { display: none; }
+    .photo-title .on-coarse { display: inline; }
+}
+.photo-or { margin: 0 0 12px; color: var(--ink-muted); font-size: .8rem; }
+
+.photo-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+/* The camera button is only useful where there is a camera. A coarse pointer is the
+   closest honest proxy — on a desktop the `capture` attribute is ignored and the button
+   would open the same file dialog as the one beside it, which is just confusing. */
+.photo-camera { display: none; }
+
+@media (pointer: coarse) {
+    .photo-camera { display: inline-block; }
+}
+
+.photo-note { margin: 14px 0 0; color: var(--ink-muted); font-size: .78rem; }
+
+/* display must be re-asserted through :not([hidden]) rather than set flat. A bare
+   `.photo-busy { display: flex }` outranks the user-agent's `[hidden] { display: none }`,
+   which leaves the progress track showing under the idle state. */
+.photo-busy { display: none; }
+.photo-busy:not([hidden]) { display: flex; align-items: center; gap: 18px; text-align: left; }
+
+.photo-preview {
+    width: 96px;
+    height: 96px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    box-shadow: var(--shadow);
+}
+
+.photo-preview:not([src]) { display: none; }
+
+.photo-progress { flex: 1; min-width: 0; }
+
+.photo-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+}
+
+.photo-bar span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width .3s ease;
+}
+
+.photo-status { margin: 10px 0 0; font-size: .85rem; color: var(--ink-muted); }
+.photo.is-error .photo-status { color: var(--danger); }
+
+.photo-reset {
+    margin-top: 8px;
+    padding: 0;
+    font: inherit;
+    font-size: .82rem;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .photo, .photo-bar span { transition: none; }
+}

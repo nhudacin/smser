@@ -27,7 +27,18 @@ public static class SecurityHeaders
     private const string Policy =
         "default-src 'self'; " +
         "style-src 'self'; " +
-        "script-src 'self'; " +
+        // 'wasm-unsafe-eval' is what lets the photo importer compile the Tesseract
+        // WebAssembly module. It is narrower than it sounds: it permits WebAssembly
+        // compilation and nothing else — no eval, no new Function, no inline script — and
+        // the only bytes it applies to are served from this origin under script-src 'self'.
+        // Without it the browser refuses to instantiate the module and photo import fails
+        // with a console error and no other symptom.
+        "script-src 'self' 'wasm-unsafe-eval'; " +
+        // The OCR engine runs in a worker. Loaded from its own URL rather than a blob
+        // (workerBlobURL: false in photo-ocr.js), which is what keeps blob: out of here.
+        "worker-src 'self'; " +
+        // data: covers both the QR code and the downscaled photo preview, which is a
+        // canvas data URL for the same reason — so blob: is not needed.
         "img-src 'self' data:; " +
         "font-src 'self'; " +
         // No plugins. Cheap, and closes an XSS vector that survives script-src.
