@@ -59,6 +59,40 @@ public class PhotoImportWiringTests
     }
 
     [TestMethod]
+    public void The_paste_hint_is_hidden_until_script_reveals_it()
+    {
+        // Same rule as the control itself: the hint is only true once the paste listener
+        // exists, so it ships hidden and photo-ocr.js is what turns it on.
+        Assert.IsTrue(
+            Regex.IsMatch(_page, @"data-photo-paste-hint hidden"),
+            "the paste hint must render with the hidden attribute");
+    }
+
+    [TestMethod]
+    public async Task The_script_still_listens_for_a_pasted_image()
+    {
+        // The hint above and this listener are two halves of one feature, and only one of
+        // them is visible. Deleting the listener leaves a page that invites a paste and
+        // then ignores it, which nothing else here would catch.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "addEventListener('paste'",
+            "the paste listener is gone, but the page still offers pasting");
+    }
+
+    [TestMethod]
+    public async Task A_pasted_image_does_not_hijack_a_pasted_roster()
+    {
+        // The import textarea sits directly below the drop zone and exists to be pasted
+        // into. The listener yields whenever the clipboard carries text, so losing that
+        // check would break the app's primary input to add a shortcut to its secondary one.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "if (text && text.trim()) return;",
+            "the paste listener must stand down when the clipboard holds text");
+    }
+
+    [TestMethod]
     public void The_script_can_find_the_import_button_it_submits()
     {
         // After OCR the script clicks Import so the numbers appear without a second tap.
