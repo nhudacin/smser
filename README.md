@@ -102,25 +102,21 @@ every camera.
 splits into two very different shapes.
 
 ```mermaid
-flowchart TD
-    paste["<b>Pasted text</b><br/><i>names · dates · zips · e-mails · jersey numbers · phone numbers</i>"]
+flowchart LR
+    paste["<b>Pasted text</b><br/><i>names · dates · zips<br/>e-mails · jersey numbers<br/>phone numbers</i>"]
 
-    paste --> p1
-    paste --> p2
+    paste --> p1["<b>Pass 1</b><br/>separated numbers<br/><i>(219) 555-0113<br/>+1 219 555 0113</i>"]
+    paste --> p2["<b>Pass 2</b><br/>runs of 12+ digits<br/><i>21955501133125550147</i>"]
 
-    p1["<b>Pass 1 · separated numbers</b><br/>regex with digit-boundary guards<br/><i>(219) 555-0113 · 219.555.0113 · +1 219 555 0113</i>"]
-    p2["<b>Pass 2 · run-together digits</b><br/>runs of 12+ digits, which pass 1 cannot match<br/><i>21955501133125550147</i>"]
+    p2 --> tile{"Divides into<br/>whole numbers<br/><b>exactly</b>?"}
+    tile -->|yes| split["Split"]
+    tile -->|no| drop["<b>Drop the run</b><br/><i>a visible gap beats a<br/>plausible wrong number</i>"]
 
-    p2 --> tile{"Divides into whole<br/>numbers <b>exactly</b>?"}
-    tile -->|yes| split["Split into numbers"]
-    tile -->|no| drop["<b>Drop the run</b><br/><i>a visible gap beats<br/>a plausible wrong number</i>"]
-
-    p1 --> nanp
+    p1 --> nanp["<b>NANP rules</b><br/><i>area code and exchange<br/>start 2-9, neither is N11</i>"]
     split --> nanp
-    nanp["<b>NANP rules</b><br/>area code and exchange start 2-9<br/>neither is an N11 service code"]
 
-    nanp --> norm["<b>Normalise · dedupe · keep order</b><br/><i>1 + ten digits, first appearance wins</i>"]
-    norm --> out["<b>sms://open?addresses=…</b><br/>then a QR code"]
+    nanp --> norm["<b>Normalise · dedupe</b><br/><i>1 + ten digits<br/>first appearance wins</i>"]
+    norm --> out["<b>sms://open?addresses=…</b><br/><i>then a QR code</i>"]
 
     style drop fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
     style out fill:#dcfce7,stroke:#22c55e,color:#14532d
@@ -142,37 +138,44 @@ international formats accepts most of the surrounding junk too.
 ```mermaid
 flowchart TB
     user(["📱 Phone or browser"])
+    user --> rate
 
     subgraph web["<b>Smser.Web</b> · ASP.NET Core Razor Pages"]
-        pages["<b>Pages</b><br/>/ · /new · /new/{id}"]
-        qr["<b>QrCodeGenerator</b><br/>PNG inlined as a data: URI"]
-        rate["<b>Rate limiter</b> + security headers"]
+        direction TB
+        rate["<b>Rate limiter</b><br/><i>+ security headers</i>"]
+        pages["<b>Pages</b><br/><i>/ · /new · /new/:id</i>"]
+        qr["<b>QrCodeGenerator</b><br/><i>encodes the sms: link as a<br/>PNG, inlined as a data: URI</i>"]
+        rate --> pages
+        pages --> qr
     end
 
     subgraph lib["<b>Smser.Library</b> · no ASP.NET dependency"]
-        parser["<b>PhoneNumberParser</b>"]
+        direction LR
+        parser["<b>PhoneNumberParser</b><br/><i>two passes, NANP rules</i>"]
         link["<b>SmsLink</b>"]
-        ids["<b>ShortId</b><br/><i>8 chars · 41.4 bits</i>"]
         store["<b>SmsGroupStore</b>"]
+        ids["<b>ShortId</b><br/><i>8 chars · 41.4 bits</i>"]
+        parser --> link
+        store --> ids
     end
 
-    table[("<b>Azure Table Storage</b><br/>rosters<br/><i>Azurite when local</i>")]
+    pages --> parser
+    pages --> store
+    store --> table[("<b>Azure Table Storage</b> · rosters<br/><i>Azurite in a container when local</i>")]
 
-    host["<b>Smser.AppHost</b><br/><i>.NET Aspire · starts Azurite + Web together</i>"]
-    defaults["<b>Smser.ServiceDefaults</b><br/><i>OpenTelemetry · /alive · /version · CSP</i>"]
-
-    user --> rate --> pages
-    pages --> parser --> link --> qr
-    pages --> store --> ids
-    store --> table
-    host -.orchestrates.-> web
-    host -.runs.-> table
-    defaults -.shared by.-> web
+    style web fill:#eef2ff,stroke:#818cf8
+    style lib fill:#f0fdf4,stroke:#4ade80
 ```
 
 The parser, the link builder, the ids and the storage contract all live in
 `Smser.Library`, which takes no ASP.NET dependency — so the roster round-trip is testable
 without a host, and a future worker or CLI can reference the same code.
+
+Two projects sit alongside and are left off the diagram because they wire things up rather
+than serve requests: **`Smser.AppHost`** is the .NET Aspire host that starts Azurite and
+the web app together for local development, and **`Smser.ServiceDefaults`** carries the
+OpenTelemetry setup, the health checks behind `/alive` and `/version`, and the
+Content-Security-Policy.
 
 ### What a paste actually does
 
@@ -188,7 +191,7 @@ sequenceDiagram
     W->>P: Parse(pasted text)
     P-->>W: 8 normalised numbers
     W-->>U: numbers in the box — nothing saved yet
-    Note over U,W: edit freely; hand edits are re-checked
+    Note over U,W: edit freely — hand edits are re-checked
     U->>W: press Generate
     W->>P: Parse(the numbers box)
     W->>T: insert under a new short id
