@@ -18,12 +18,14 @@ public class NewModel : PageModel
 {
     private readonly SmsGroupStore _store;
     private readonly QrCodeGenerator _qrCodes;
+    private readonly VisitRecorder _visits;
     private readonly ILogger<NewModel> _logger;
 
-    public NewModel(SmsGroupStore store, QrCodeGenerator qrCodes, ILogger<NewModel> logger)
+    public NewModel(SmsGroupStore store, QrCodeGenerator qrCodes, VisitRecorder visits, ILogger<NewModel> logger)
     {
         _store = store;
         _qrCodes = qrCodes;
+        _visits = visits;
         _logger = logger;
     }
 
@@ -164,15 +166,35 @@ public class NewModel : PageModel
 
             await _store.UpdateAsync(existing, Input.GroupName, rawText, numbers, cancellationToken);
             _logger.LogInformation("Updated roster {RosterId} with {NumberCount} numbers", existing, numbers.Count);
+            RecordRosterEvent(VisitEvents.RosterUpdated, existing, numbers.Count);
 
             return RedirectToPage(new { id = existing });
         }
 
         var saved = await _store.CreateAsync(Input.GroupName, rawText, numbers, cancellationToken);
         _logger.LogInformation("Created roster {RosterId} with {NumberCount} numbers", saved.Id, numbers.Count);
+        RecordRosterEvent(VisitEvents.RosterCreated, saved.Id, numbers.Count);
 
         return RedirectToPage(new { id = saved.Id });
     }
+
+    /// <summary>
+    /// Notes a save in the audit log. The middleware only sees GETs, so without this a
+    /// roster's creation is invisible — the first trace of it would be somebody opening
+    /// the link afterwards.
+    /// </summary>
+    private void RecordRosterEvent(string name, string rosterId, int numberCount) =>
+        _visits.Record(new VisitEntry
+        {
+            OccurredAt = DateTimeOffset.UtcNow,
+            Event = name,
+            Path = Request.Path.Value ?? "/new",
+            RosterId = rosterId,
+            Ip = VisitRecorder.ClientIp(HttpContext),
+            UserAgent = Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null,
+            Referer = Request.Headers.Referer.ToString() is { Length: > 0 } r ? r : null,
+            NumberCount = numberCount
+        });
 
     private void ShowResult(IReadOnlyList<string> numbers)
     {

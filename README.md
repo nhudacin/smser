@@ -341,6 +341,7 @@ dotnet test --solution src/Smser.slnx
 | `SampleRosterTests` | Every file in [`samples/`](samples/) against its `.expected` result, plus a guard that no sample yields a number outside the reserved range. |
 | `NewPageFormWiringTests` | Boots the real app and asserts on rendered HTML — the form's `action` and the buttons' `formaction`. |
 | `PhotoImportWiringTests` | That the photo control ships hidden, asks for the rear camera, every vendored asset is served, and the CSP still permits the engine to compile. |
+| `VisitRecorderTests` | What the audit log records and — mostly — what it deliberately does not. |
 | `ShortIdTests` · `SmsLinkTests` · `QrCodeGeneratorTests` | Id keyspace and validation, link format, QR rendering and its capacity ceiling. |
 
 The whole suite is self-contained: nothing reaches storage, and the page-wiring tests boot
@@ -363,6 +364,7 @@ request, in Release, with `-warnaserror`.
 | `src/Smser.Tests` | MSTest on Microsoft.Testing.Platform. |
 | `src/Smser.Web/wwwroot/lib/tesseract` | Vendored OCR engine. See [its README](src/Smser.Web/wwwroot/lib/tesseract/README.md) for versions and why it is committed. |
 | `samples/` | Sample rosters, each checked against an expected result on every build. |
+| `scripts/` | Operator scripts. `list-visits.ps1` reads the production visit log. |
 
 **Stack:** .NET 10 · ASP.NET Core Razor Pages · .NET Aspire · Azure Table Storage ·
 QRCoder · Tesseract (WebAssembly, in-browser) · MSTest · GitHub Actions.
@@ -380,12 +382,60 @@ This is an app about other people's phone numbers, so a few things are deliberat
 - **Photos never leave the device.** The OCR engine is WebAssembly served from this
   origin and runs in the browser. No photo is uploaded, stored, or sent to a vision API.
 - **Nothing is stored that does not need to be.** The QR code is regenerated per request
-  rather than kept in storage. There are no analytics and no third-party scripts.
+  rather than kept in storage. There are no third-party scripts, no cookies beyond the
+  antiforgery token, and no trackers.
+- **There is a visit log**, and it records IP addresses. It is first-party, written to
+  the same storage account as the rosters, and used to understand usage — see
+  [Usage log](#-usage-log) for exactly what it holds and how to read it.
 - **Strict CSP with no `unsafe-inline`.** All styling is in `site.css` and all behaviour in
   `site.js`, so the policy is one the markup actually honours.
 - **CI audits dependencies** for known advisories, transitive ones included, on every PR.
 
 Found something? See [SECURITY.md](SECURITY.md).
+
+## 📊 Usage log
+
+Every page view is written to a `visits` table in the same storage account as the rosters.
+
+| Field | |
+|---|---|
+| `OccurredAt` | UTC timestamp |
+| `Event` | `page`, `roster-viewed`, `roster-created`, `roster-updated` |
+| `Path` | the URL requested, as typed |
+| `RosterId` | the roster involved, normalised, when the path names one |
+| `Ip` | caller address — the visitor's, because forwarded headers are configured |
+| `UserAgent`, `Referer` | as sent by the browser |
+| `Country` | only when a front end supplies a country header |
+| `NumberCount` | roster size, on create and update |
+
+**Not logged:** static assets, `/alive`, `/version`, `/health`, and POSTs. App Service
+polls the health endpoint continuously and a page pulls a dozen files, so logging
+everything would bury the real visits and bill per transaction for the privilege. A save
+posts and then redirects, so counting both would double every roster — the save is
+recorded once, explicitly, as `roster-created`.
+
+**It never slows a page down.** The request thread drops an entry into a bounded in-memory
+queue and returns; a background writer batches them to storage every few seconds. If
+storage is unavailable the batch is lost and the site carries on — analytics must not be
+able to take the app down.
+
+### Reading it
+
+```powershell
+az login
+.\scripts\list-visits.ps1                                  # last 100, newest first
+.\scripts\list-visits.ps1 -Count 20 -Event roster-created   # just the rosters created
+.\scripts\list-visits.ps1 -Count 500 -Raw | Group-Object Ip | Sort-Object Count -Descending
+```
+
+It prints a table plus totals by event and a unique-IP count. `-Raw` gives objects for
+grouping or `Export-Csv`.
+
+### Retention
+
+Nothing expires it yet. `VisitLog.DeleteBeforeAsync` deletes whole day-partitions and is
+there for when something calls it — worth wiring up, since IP addresses are personal data
+in most of the world and this is the only place the app holds any.
 
 ## 🗺️ Roadmap
 
@@ -395,8 +445,8 @@ Found something? See [SECURITY.md](SECURITY.md).
       forwarded-headers config for running behind a reverse proxy, and an app host whose
       storage resource targets a real account when published. There is no infra or
       pipeline yet.
-- [ ] **Retention.** Rosters are kept forever today. `CreatedTs` exists so a sweep has
-      something to sort on.
+- [ ] **Retention.** Rosters and visit-log entries are both kept forever today.
+      `CreatedTs` and `VisitLog.DeleteBeforeAsync` exist so a sweep has something to use.
 - [ ] **Non-NANP numbers**, if anyone actually wants them.
 
 ## 🤝 Contributing
