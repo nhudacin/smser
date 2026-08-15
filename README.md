@@ -44,6 +44,7 @@ the whole roster already filled in.
 
 | | |
 |---|---|
+| **📷 Photo import** | Take a picture of the roster, or drop one in. The text is read **on your device** — the photo is never uploaded. |
 | **Paste anything** | Names, jersey numbers, dates, zips, e-mail addresses, OCR noise. The importer finds the phone numbers and ignores the rest. |
 | **Every format** | `(219) 555-0113`, `219.555.0113`, `+1 219 555 0113`, `12195550113`, and a dozen more all collapse to one entry. |
 | **Refuses to guess** | Numbers are checked against real NANP rules. A run of digits is only split when it divides into whole numbers *exactly* — a wrong number here gets texted to a stranger. |
@@ -78,6 +79,24 @@ extension dropped, an order number and a zip ignored.
 <tr>
 <td valign="top">
 
+**Photograph the roster**
+
+<img src="docs/images/photo-mobile.png" alt="The photo import control on a phone, offering 'Take a photo' and 'Choose a photo' buttons" width="330">
+
+On a phone the camera button opens the rear camera directly. OCR runs on the device.
+
+</td>
+<td valign="top">
+
+**Reading it**
+
+<img src="docs/images/photo-reading.png" alt="The photo import control showing a thumbnail of the roster and a progress bar reading 'Loading the reader'">
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
 **Dark mode, same page**
 
 <img src="docs/images/result-dark.png" alt="A saved group rendered in dark mode, with the QR code still on a white plate">
@@ -95,6 +114,34 @@ every camera.
 </td>
 </tr>
 </table>
+
+## 📷 Reading a photo
+
+Take a picture of the roster — or drop one in on a desktop — and the text goes straight
+into the import box, which then runs the same parser everything else does.
+
+**The OCR runs in your browser**, on a WebAssembly build of Tesseract served from this
+app's own origin. That is a deliberate choice, not a convenience one. A photo of a roster
+is a photo of thirty people's phone numbers; the usual approach — POST it to a cloud
+vision API — hands exactly that to a third party for every list anyone ever makes. Keeping
+it on the device also means the feature works offline, costs nothing to run, and needs no
+API key to try locally.
+
+The trade is size: the engine is about 5 MB. It is fetched **on first use**, not on page
+load, so anyone who never touches the photo control never downloads it, and the browser
+caches it afterwards.
+
+| | |
+|---|---|
+| **On a phone** | The camera button opens the rear camera directly (`capture="environment"`). |
+| **On a desktop** | Drag a photo onto the drop zone, or pick one. The camera button is hidden, because `capture` does nothing there. |
+| **Before recognition** | The image is scaled to 2000px on its long edge and EXIF rotation is applied, so a portrait phone photo does not reach the OCR sideways. |
+| **After** | The text is *appended* to the import box and Import runs automatically — photographing page two does not wipe page one. |
+| **Without JavaScript** | The whole control stays hidden. Pasting still works. |
+
+OCR output is messy by nature, which suits this app: the parser was already built to find
+numbers in garbled text and ignore the rest. What comes out of a photo is exactly the kind
+of input [`samples/`](samples/) is full of.
 
 ## 🧠 How the parser works
 
@@ -293,6 +340,7 @@ dotnet test --solution src/Smser.slnx
 | `PhoneNumberParserTests` | Every format, numbers buried in prose, run-together digits, and a long list of things that must **not** parse. |
 | `SampleRosterTests` | Every file in [`samples/`](samples/) against its `.expected` result, plus a guard that no sample yields a number outside the reserved range. |
 | `NewPageFormWiringTests` | Boots the real app and asserts on rendered HTML — the form's `action` and the buttons' `formaction`. |
+| `PhotoImportWiringTests` | That the photo control ships hidden, asks for the rear camera, every vendored asset is served, and the CSP still permits the engine to compile. |
 | `ShortIdTests` · `SmsLinkTests` · `QrCodeGeneratorTests` | Id keyspace and validation, link format, QR rendering and its capacity ceiling. |
 
 The whole suite is self-contained: nothing reaches storage, and the page-wiring tests boot
@@ -313,10 +361,11 @@ request, in Release, with `-warnaserror`.
 | `src/Smser.Library` | Parser, `sms:` link builder, short ids, Table Storage. No ASP.NET dependency. |
 | `src/Smser.ServiceDefaults` | OpenTelemetry, health checks, `/alive`, `/version`, response security headers. |
 | `src/Smser.Tests` | MSTest on Microsoft.Testing.Platform. |
+| `src/Smser.Web/wwwroot/lib/tesseract` | Vendored OCR engine. See [its README](src/Smser.Web/wwwroot/lib/tesseract/README.md) for versions and why it is committed. |
 | `samples/` | Sample rosters, each checked against an expected result on every build. |
 
 **Stack:** .NET 10 · ASP.NET Core Razor Pages · .NET Aspire · Azure Table Storage ·
-QRCoder · MSTest · GitHub Actions.
+QRCoder · Tesseract (WebAssembly, in-browser) · MSTest · GitHub Actions.
 
 ## 🔒 Privacy and security
 
@@ -328,6 +377,8 @@ This is an app about other people's phone numbers, so a few things are deliberat
 - **Every phone number in this repo is fictional.** All of them are in `555-0100`–`555-0199`,
   the block [NANPA reserves](https://nationalnanpa.com/) for fictional use, and
   `SampleRosterTests` fails the build if a sample ever yields one outside it.
+- **Photos never leave the device.** The OCR engine is WebAssembly served from this
+  origin and runs in the browser. No photo is uploaded, stored, or sent to a vision API.
 - **Nothing is stored that does not need to be.** The QR code is regenerated per request
   rather than kept in storage. There are no analytics and no third-party scripts.
 - **Strict CSP with no `unsafe-inline`.** All styling is in `site.css` and all behaviour in
