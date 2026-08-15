@@ -7,7 +7,10 @@
 [Ll]ogs/
 artifacts/
 TestResults/
+test-output.txt
+audit.txt
 *.binlog
+*.trx
 
 ## Visual Studio / Rider / VS Code
 .vs/
