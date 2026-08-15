@@ -1,5 +1,7 @@
 # SMSer
 
+[![CI](https://github.com/nhudacin/smser/actions/workflows/ci.yml/badge.svg)](https://github.com/nhudacin/smser/actions/workflows/ci.yml)
+
 Group texts, easier.
 
 Paste a roster — however garbled it came off a phone — and get back a link and a QR code
@@ -67,6 +69,11 @@ project, point at the project instead:
 ```powershell
 dotnet test src/Smser.Tests/Smser.Tests.csproj
 ```
+
+This is what CI runs on every pull request, in Release, with `-warnaserror`. The whole
+suite is self-contained — nothing in it reaches storage, and the page-wiring tests boot
+the web app in-process — so it needs neither Docker nor Azurite. See
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ### 5. Run the app
 

@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only. Nothing here publishes, comments, or pushes, so nothing here needs a token
+# that could. Results reach the PR through the run's own checks and job summary.
+permissions:
+  contents: read
+
+# A second push to a PR makes the first run's answer irrelevant. Cancel it rather than
+# paying for it. Never cancels on main: those runs are the record of what was merged.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # No packages.lock.json in this repo, so the key hashes the project files instead.
+      # A restore-keys prefix means a changed dependency still starts from the last good
+      # cache rather than an empty one.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore src/Smser.slnx
+
+      # -warnaserror because the solution builds clean today. A warning that is allowed to
+      # land is a warning nobody reads afterwards.
+      - name: Build
+        run: dotnet build src/Smser.slnx --no-restore --configuration Release -warnaserror
+
+      # This suite needs no Docker and no Azurite: nothing in it reaches storage, and the
+      # page-wiring tests boot the web app in-process with a placeholder connection string.
+      # If that ever stops being true, this step is where it will surface.
+      - name: Test
+        run: |
+          set -o pipefail
+          dotnet test --solution src/Smser.slnx --no-build --configuration Release \
+            -- --report-trx --report-trx-filename results.trx 2>&1 | tee test-output.txt
+
+      - name: Summarise results
+        if: always()
+        run: |
+          {
+            echo '## Test results'
+            echo
+            echo '```'
+            if [ -f test-output.txt ]; then
+              tail -n 40 test-output.txt
+            else
+              echo 'The test step did not produce output — it failed before running.'
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            TestResults/
+            test-output.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  vulnerable-packages:
+    name: Vulnerable packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore src/Smser.slnx
+
+      # `dotnet list package --vulnerable` reports findings on stdout and still exits 0,
+      # so the exit code cannot be trusted and the output has to be read. Transitive
+      # packages are included because that is where these actually arrive — see the
+      # MessagePack pin in TemprBac for the shape of the fix when this fires.
+      - name: Audit
+        run: |
+          set -o pipefail
+          dotnet list src/Smser.slnx package --vulnerable --include-transitive 2>&1 | tee audit.txt
+
+          if grep -q 'has the following vulnerable packages' audit.txt; then
+            {
+              echo '## Vulnerable packages found'
+              echo
+              echo '```'
+              cat audit.txt
+              echo '```'
+              echo
+              echo 'Pin the affected package to a fixed version in the project that pulls it in.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo '## No vulnerable packages' >> "$GITHUB_STEP_SUMMARY"
