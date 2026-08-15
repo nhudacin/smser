@@ -18,6 +18,29 @@
         <form method="post" asp-page="/New" asp-route-id="@Model.Id">
             <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
+            @*
+                Bot checks. See FormGuard for what these are and what they are not.
+
+                The honeypot is a real text input rather than type="hidden", because the
+                bots worth catching skip hidden inputs and fill everything else. It is
+                moved off screen by CSS rather than display:none for the same reason.
+
+                Two consequences of that choice are handled here. It is taken out of the
+                tab order and hidden from assistive tech, so nobody navigating by keyboard
+                or screen reader can land in it by accident. And the label says what to do
+                with it, so that if the stylesheet ever fails to load the field degrades
+                into a visible input that tells the truth rather than a mystery box.
+
+                Never rendered with a value. A password manager that fills this in once
+                would otherwise lock that person out of the form permanently.
+            *@
+            <div class="offscreen" aria-hidden="true">
+                <label for="@FormGuard.HoneypotField">Leave this field empty</label>
+                <input type="text" id="@FormGuard.HoneypotField" name="@FormGuard.HoneypotField"
+                       value="" autocomplete="off" tabindex="-1" />
+            </div>
+            <input type="hidden" name="@FormGuard.TimestampField" value="@Model.IssuedTimestamp" />
+
             <div class="field">
                 <label asp-for="Input.GroupName">SMS group name</label>
                 <input asp-for="Input.GroupName" placeholder="soccer team 2023" autocomplete="off" />

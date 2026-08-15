@@ -17,6 +17,22 @@ public static class VisitEvents
 
     /// <summary>An existing roster was edited and saved again.</summary>
     public const string RosterUpdated = "roster-updated";
+
+    /// <summary>
+    /// A submission filled in the hidden field no person can see. Recorded rather than
+    /// merely refused, because the point of the log is to be able to answer "is this
+    /// actually happening, and from where" without waiting for a storage bill to say so.
+    /// </summary>
+    public const string BotHoneypot = "bot-honeypot";
+
+    /// <summary>A submission that came back faster than the page can be read.</summary>
+    public const string BotTooFast = "bot-too-fast";
+
+    /// <summary>
+    /// A caller that ran into the rate limiter. Logged here even though the limiter sits
+    /// in front of the visit middleware, which otherwise never sees these.
+    /// </summary>
+    public const string Throttled = "throttled";
 }
 
 /// <summary>One line in the audit log.</summary>

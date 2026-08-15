@@ -20,7 +20,8 @@
     How many days back to look before giving up. Default 14.
 
 .PARAMETER Event
-    Only show one kind: page, roster-viewed, roster-created, roster-updated.
+    Only show one kind: page, roster-viewed, roster-created, roster-updated, or one of the
+    refusals — bot-honeypot, bot-too-fast, throttled.
 
 .PARAMETER Raw
     Emit objects instead of a formatted table, for grouping and exporting.
@@ -44,7 +45,8 @@
 param(
     [int]$Count = 100,
     [int]$Days = 14,
-    [ValidateSet('page', 'roster-viewed', 'roster-created', 'roster-updated')]
+    [ValidateSet('page', 'roster-viewed', 'roster-created', 'roster-updated',
+                 'bot-honeypot', 'bot-too-fast', 'throttled')]
     [string]$Event,
     [switch]$Raw
 )
