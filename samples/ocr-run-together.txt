@@ -1,0 +1,17 @@
+Scanned off the team sheet; the separators did not survive.
+
+Two bare numbers run together:
+21955501133125550147
+
+Two numbers that both kept their country code:
+1219555011313125550147
+
+One bare, one with a country code:
+219555011313125550147
+
+A row number glued onto the front. This one is dropped rather than
+guessed at -- a wrong number here would be saved and then texted.
+00721955501133125550147
+
+Twelve digits, which is neither one number nor two:
+219555011312

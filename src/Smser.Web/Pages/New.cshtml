@@ -1,0 +1,113 @@
+@page "{id?}"
+@model NewModel
+@{
+    ViewData["Title"] = Model.HasResult ? $"{Model.Input.GroupName} — SMSer" : "New SMS group — SMSer";
+}
+
+<div class="split">
+    <section class="panel">
+        <h1>@(Model.HasResult ? "Edit SMS group" : "New SMS group")</h1>
+
+        @*
+            The action is set explicitly, and it has to be. A bare <form method="post">
+            has no action attribute, so the browser posts to the *current document URL* —
+            which after the Import button has run is /new?handler=Import. Generate carries
+            no formaction of its own, so it would inherit that URL and re-run the import
+            handler instead of saving: the roster never persists and no QR code appears.
+        *@
+        <form method="post" asp-page="/New" asp-route-id="@Model.Id">
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+            <div class="field">
+                <label asp-for="Input.GroupName">SMS group name</label>
+                <input asp-for="Input.GroupName" placeholder="soccer team 2023" autocomplete="off" />
+                <p class="hint">This helps you tell multiple teams and rosters apart.</p>
+                <span asp-validation-for="Input.GroupName" class="validation-message"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="Input.RawText">Roster import</label>
+                <textarea asp-for="Input.RawText" rows="6"
+                          placeholder="Paste anything here — names, numbers, whatever your phone copied."></textarea>
+                <p class="hint">
+                    Paste whatever your phone will &quot;copy as text&quot;. Import pulls the phone
+                    numbers out of the garbled result, in whatever format they are written.
+                </p>
+                <span asp-validation-for="Input.RawText" class="validation-message"></span>
+            </div>
+
+            <div class="actions">
+                @* Route values named explicitly rather than left to the ambient ones, so
+                   the formaction stays correct on /new/{id} as well as on /new. *@
+                <button type="submit" asp-page="/New" asp-page-handler="Import" asp-route-id="@Model.Id"
+                        class="button button-secondary">Import</button>
+            </div>
+
+            @if (Model.ImportMessage is not null)
+            {
+                <p class="notice">@Model.ImportMessage</p>
+            }
+
+            <div class="field">
+                <label asp-for="Input.Numbers">Phone numbers</label>
+                <textarea asp-for="Input.Numbers" rows="10" placeholder="(219) 555-0113"></textarea>
+                <p class="hint">
+                    One per line. Edit freely — anything you type is re-checked when you generate.
+                    <br />
+                    <strong>Important:</strong> remove your own number if it is in the list.
+                </p>
+                <span asp-validation-for="Input.Numbers" class="validation-message"></span>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="button">@(Model.HasResult ? "Regenerate" : "Generate")</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        @if (Model.HasResult)
+        {
+            <h1>Your QR code</h1>
+
+            @if (Model.QrDataUri is not null)
+            {
+                <img class="qr" src="@Model.QrDataUri" alt="QR code that opens a group message to this roster"
+                     width="640" height="640" />
+            }
+            else if (Model.QrTooLarge)
+            {
+                <p class="notice">
+                    This list is too long to fit in a QR code — @Model.Numbers.Count numbers.
+                    The mobile link below still works.
+                </p>
+            }
+
+            <div class="actions actions-center">
+                <a class="button" href="@Model.SmsUrl">Mobile link</a>
+                <button type="button" class="button button-secondary" data-copy="@Model.ShareUrl">Copy share link</button>
+            </div>
+
+            <p class="hint hint-center" data-copy-status role="status">
+                On a phone, the mobile link opens a message with all @Model.Numbers.Count numbers in it.
+                Copy the share link to send this list to another device, or to keep it for later.
+            </p>
+
+            <details class="roster">
+                <summary>@Model.Numbers.Count number@(Model.Numbers.Count == 1 ? "" : "s") in this list</summary>
+                <ol>
+                    @foreach (var number in Model.Numbers)
+                    {
+                        <li>@PhoneNumberParser.Format(number)</li>
+                    }
+                </ol>
+            </details>
+        }
+        else
+        {
+            <div class="placeholder">
+                <p>Your QR code shows up here once you generate the list.</p>
+            </div>
+        }
+    </section>
+</div>

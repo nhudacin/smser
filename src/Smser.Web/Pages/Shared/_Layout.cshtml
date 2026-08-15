@@ -1,0 +1,39 @@
+@*
+    One layout for every page. All styling lives in site.css and all behaviour in
+    site.js — nothing inline anywhere — because the Content-Security-Policy in
+    ServiceDefaults carries no 'unsafe-inline'. An inline <style> or onclick added here
+    will fail visibly in the browser console rather than quietly requiring the policy to
+    be weakened.
+*@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"]</title>
+    <meta name="description" content="Group texts, easier. Paste a roster, get a link that opens a group message with everyone already in it." />
+    <link rel="icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="/">
+            <img src="~/smser.svg" alt="SMSer" width="120" height="25" />
+        </a>
+        <p class="tagline">Making group text management a little easier</p>
+    </header>
+
+    <main class="site-main">
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <span>By</span>
+        <img src="~/nick.svg" alt="Nick Hudacin" width="80" height="40" />
+        <a href="https://github.com/nhudacin/smser" target="_blank" rel="noopener noreferrer">Source</a>
+    </footer>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

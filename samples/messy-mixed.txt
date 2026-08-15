@@ -1,0 +1,9 @@
+Carpool list, pasted together from three different places.
+
+Alex 219-555-0113 / Sam 312.555.0147
+home 415 555 0199, cell 213-555-0188
+Chris O 310-555-0166 x204
+Pat Doe 650-555-0143 -- do not text before 9am
+Duplicate on purpose: (219) 555-0113
+Two smashed together: 21055501333125550152
+Not numbers: order 4500123789, zip 46360, 16 seats

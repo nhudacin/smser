@@ -1,0 +1,234 @@
+/*
+  All of the app's styling. Nothing is inline anywhere — the CSP in ServiceDefaults
+  carries no 'unsafe-inline' for style-src, so a style attribute added to a page will be
+  dropped by the browser rather than quietly forcing the policy open.
+
+  Light and dark are both defined here. The app is used on a phone, at a game, in
+  whatever the handset is set to.
+*/
+
+:root {
+    color-scheme: light dark;
+
+    --bg: #ffffff;
+    --bg-raised: #f7f8fa;
+    --ink: #0f1a2b;
+    --ink-muted: #5b6779;
+    --border: #e2e8f0;
+    --accent: #4f46e5;
+    --accent-ink: #ffffff;
+    --accent-hover: #4338ca;
+    --danger: #b42318;
+    --notice-bg: #eef2ff;
+    --shadow: 0 1px 2px rgba(15, 26, 43, .06), 0 8px 24px rgba(15, 26, 43, .06);
+    --radius: 10px;
+    --measure: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0b1220;
+        --bg-raised: #131c2e;
+        --ink: #e8edf5;
+        --ink-muted: #9aa8bd;
+        --border: #263349;
+        --accent: #818cf8;
+        --accent-ink: #0b1220;
+        --accent-hover: #a5b4fc;
+        --danger: #fca5a5;
+        --notice-bg: #1c2438;
+        --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+    }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .9em;
+    background: var(--bg-raised);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+/* ── header / footer ─────────────────────────────────────────────────────── */
+
+.site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    padding: 16px 5vw;
+    border-bottom: 1px solid var(--border);
+}
+
+.brand { display: inline-flex; }
+
+/* The two logos are single-colour SVGs authored for a light page. Inverting on dark
+   keeps them legible without maintaining a second copy of each. */
+.brand img, .site-footer img { height: 26px; width: auto; display: block; }
+
+@media (prefers-color-scheme: dark) {
+    .brand img, .site-footer img { filter: invert(1); }
+}
+
+.tagline { margin: 0; color: var(--ink-muted); font-size: .9rem; }
+
+.site-main { flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; padding: 32px 5vw 64px; }
+
+.site-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 5vw;
+    border-top: 1px solid var(--border);
+    color: var(--ink-muted);
+    font-size: .85rem;
+}
+
+.site-footer img { height: 20px; }
+.site-footer a { margin-left: auto; }
+
+/* ── home ────────────────────────────────────────────────────────────────── */
+
+.hero { padding: 32px 0 40px; }
+.hero h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.15; margin: 0 0 16px; letter-spacing: -.02em; }
+.lede { max-width: var(--measure); color: var(--ink-muted); font-size: 1.1rem; margin: 0 0 28px; }
+
+.cards { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+.card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+
+.card h2 { font-size: 1.05rem; margin: 0 0 8px; }
+.card p { margin: 0; color: var(--ink-muted); font-size: .95rem; }
+
+/* ── the roster screen ───────────────────────────────────────────────────── */
+
+.split { display: grid; gap: 40px; grid-template-columns: 1fr; }
+
+@media (min-width: 900px) {
+    .split { grid-template-columns: 1fr 1fr; gap: 48px; }
+}
+
+.panel h1 { font-size: 1.6rem; margin: 0 0 24px; }
+
+.field { margin-bottom: 22px; }
+
+.field label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: 6px; }
+
+.field input, .field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.field textarea { resize: vertical; min-height: 6em; }
+
+.field input:focus-visible, .field textarea:focus-visible, .button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.hint { margin: 8px 0 0; color: var(--ink-muted); font-size: .85rem; }
+.hint-center { text-align: center; max-width: 44ch; margin-inline: auto; }
+
+.notice {
+    margin: 0 0 22px;
+    padding: 10px 14px;
+    background: var(--notice-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: .9rem;
+}
+
+.validation-message, .validation-summary { display: block; color: var(--danger); font-size: .85rem; margin-top: 6px; }
+.validation-summary:empty { display: none; }
+.validation-summary ul { margin: 0; padding-left: 1.2em; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+.actions-center { justify-content: center; margin-top: 20px; }
+
+.button {
+    display: inline-block;
+    padding: 10px 20px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.button:hover { background: var(--accent-hover); }
+.button-large { padding: 14px 28px; font-size: 1.05rem; }
+
+.button-secondary {
+    color: var(--ink);
+    background: var(--bg-raised);
+    border-color: var(--border);
+}
+
+.button-secondary:hover { background: var(--border); }
+
+.qr {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    margin: 0 auto;
+    /* The symbol has to stay dark-on-light to scan; a dark-mode inversion would make it
+       unreadable to every camera. The white plate is deliberate. */
+    background: #ffffff;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.placeholder {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    min-height: 280px;
+    padding: 24px;
+    color: var(--ink-muted);
+    background: var(--bg-raised);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+}
+
+.roster { margin-top: 28px; }
+.roster summary { cursor: pointer; font-weight: 600; }
+.roster ol { margin: 12px 0 0; padding-left: 2.4em; columns: 2; column-gap: 32px; }
+.roster li { font-variant-numeric: tabular-nums; }
+
+/* ── error / not-found ───────────────────────────────────────────────────── */
+
+.message-page { max-width: var(--measure); padding: 48px 0; }
+.message-page h1 { font-size: 1.6rem; margin: 0 0 12px; }
+.message-page p { color: var(--ink-muted); }
