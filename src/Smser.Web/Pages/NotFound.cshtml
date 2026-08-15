@@ -1,14 +1,29 @@
 @page "/not-found"
 @model NotFoundModel
 @{
-    ViewData["Title"] = "Not found — SMSer";
+    ViewData["Title"] = Model.WasThrottled ? "Slow down — SMSer" : "Not found — SMSer";
 }
 
 <div class="message-page">
-    <h1>No list here.</h1>
-    <p>
-        That link does not match a saved list. It may have been mistyped, or the list may
-        never have been generated.
-    </p>
+    @if (Model.WasThrottled)
+    {
+        <h1>One moment.</h1>
+        <p>
+            That is more requests than this app accepts from one place in a minute. Nothing
+            is wrong with your list — wait a minute and try again.
+        </p>
+        <p>
+            The limit is there because saving a list needs no sign-in, which makes it worth
+            automating for anyone who wants to fill the storage behind it.
+        </p>
+    }
+    else
+    {
+        <h1>No list here.</h1>
+        <p>
+            That link does not match a saved list. It may have been mistyped, or the list may
+            never have been generated.
+        </p>
+    }
     <p><a class="button" href="/new">Start a new list</a></p>
 </div>

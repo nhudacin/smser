@@ -28,11 +28,25 @@ Worth stating plainly, because it shapes what counts as a vulnerability here.
   enumeration of ids, a cache that leaks across requests, an id that turns out to be
   predictable.
 - **A visit log holds IP addresses.** Every page view is recorded to first-party storage
-  with the caller's address, user agent and referer, to understand usage. It is not
-  shared with anyone and there is no third-party analytics, but it is personal data and
-  it currently has no expiry.
-- **Anonymous writes.** Saving a roster is unauthenticated and writes to storage. It is
-  rate limited, and roster size is capped, but there is no captcha.
+  with the caller's address, user agent and referer, to understand usage. Refused
+  submissions and throttled callers are recorded too, as `bot-honeypot`, `bot-too-fast`
+  and `throttled`, so abuse is visible without waiting for a storage bill to reveal it.
+  It is not shared with anyone and there is no third-party analytics, but it is personal
+  data and it currently has no expiry.
+- **Anonymous writes.** Saving a roster is unauthenticated and writes to storage. There is
+  no captcha, deliberately — every captcha worth having is a third-party script on the one
+  page where the roster lives, which contradicts the line above it. What guards it instead
+  is four cheap layers, none of which is a wall on its own:
+
+  | | |
+  |---|---|
+  | **Antiforgery** | A post has to come from a form this app rendered, so a bot cannot fire blind at the endpoint. |
+  | **Rate limit** | Per caller, per minute: 2 saves, 10 imports, 30 reads. Separate budgets, so reading a roster never spends the allowance for writing one. |
+  | **Honeypot** | A field no person can see. Anything in it means the form was filled in by rote. |
+  | **Elapsed time** | An encrypted timestamp on the form. A submission that comes back faster than the page can be read is refused. |
+
+  A bot written for this app specifically gets past the last two. The rate limit is what
+  bounds what it can do, and the visit log is what makes it visible.
 - **Photo import runs entirely in the browser.** The Tesseract WebAssembly engine is
   served from this origin and no photo is ever uploaded. Anything that causes an image
   to leave the device is in scope and serious.
