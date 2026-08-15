@@ -27,6 +27,10 @@ Worth stating plainly, because it shapes what counts as a vulnerability here.
   lets one visitor read another's roster is the highest-severity class of bug here —
   enumeration of ids, a cache that leaks across requests, an id that turns out to be
   predictable.
+- **A visit log holds IP addresses.** Every page view is recorded to first-party storage
+  with the caller's address, user agent and referer, to understand usage. It is not
+  shared with anyone and there is no third-party analytics, but it is personal data and
+  it currently has no expiry.
 - **Anonymous writes.** Saving a roster is unauthenticated and writes to storage. It is
   rate limited, and roster size is capped, but there is no captcha.
 - **Photo import runs entirely in the browser.** The Tesseract WebAssembly engine is
@@ -38,6 +42,7 @@ Worth stating plainly, because it shapes what counts as a vulnerability here.
 ## In scope
 
 - Reading, listing, or enumerating rosters you did not create
+- Any way for a visitor to read the visit log, or to inject entries into it
 - Id generation that is predictable or lower-entropy than claimed
 - XSS, CSRF, header injection, or anything that defeats the CSP
 - Anything that causes a photo, or text read from one, to be transmitted off the device
