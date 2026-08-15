@@ -52,6 +52,16 @@ for the other, it should trade in that direction.
 `'unsafe-inline'`. Styling goes in `wwwroot/css/site.css`, behaviour in
 `wwwroot/js/site.js`. An inline `style=` or `onclick=` will be dropped by the browser.
 
+**📷 Photos stay on the device.** The OCR engine is vendored under
+`src/Smser.Web/wwwroot/lib/tesseract` and runs in the browser. Please do not replace it
+with a call to a cloud vision API: a photo of a roster is a photo of thirty people's
+phone numbers, and not sending it anywhere is the point. Same reason there are no
+third-party origins in the Content-Security-Policy.
+
+`PhotoImportWiringTests` checks the wiring — hidden by default, rear camera requested,
+assets served, CSP intact. It cannot check that OCR still *works*, so if you touch the
+engine or `photo-ocr.js`, run it against a real photo of a roster by hand.
+
 **♿ It has to work without JavaScript.** Import and Generate are real form posts. Script
 is for enhancement only — today that is the copy-link button and nothing else.
 

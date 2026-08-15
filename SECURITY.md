@@ -29,6 +29,9 @@ Worth stating plainly, because it shapes what counts as a vulnerability here.
   predictable.
 - **Anonymous writes.** Saving a roster is unauthenticated and writes to storage. It is
   rate limited, and roster size is capped, but there is no captcha.
+- **Photo import runs entirely in the browser.** The Tesseract WebAssembly engine is
+  served from this origin and no photo is ever uploaded. Anything that causes an image
+  to leave the device is in scope and serious.
 - **No third-party scripts, fonts, analytics, or CDNs.** Everything is served from the
   app's own origin under a Content-Security-Policy with no `'unsafe-inline'`.
 
@@ -37,6 +40,7 @@ Worth stating plainly, because it shapes what counts as a vulnerability here.
 - Reading, listing, or enumerating rosters you did not create
 - Id generation that is predictable or lower-entropy than claimed
 - XSS, CSRF, header injection, or anything that defeats the CSP
+- Anything that causes a photo, or text read from one, to be transmitted off the device
 - Parser behaviour that produces a phone number **not present in the input** — a wrong
   number gets texted to a stranger, which is the worst outcome this app has
 - Denial of service that a single caller can cause within the rate limits
