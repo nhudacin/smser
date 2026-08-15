@@ -1,0 +1,18 @@
+Contacts
+
+Alex Rivera
+mobile
+(219) 555-0113
+Sam Chen
+mobile
+312.555.0147
+home
+312.555.0148
+Jo Patel
+mobile
++1 415 555 0199
+Chris Okafor
+mobile
+213-555-0188
+work
+213 555 0189
