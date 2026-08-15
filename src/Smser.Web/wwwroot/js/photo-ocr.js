@@ -28,6 +28,7 @@
     var reset = root.querySelector('[data-photo-reset]');
     var fileInput = root.querySelector('[data-photo-file]');
     var captureInput = root.querySelector('[data-photo-capture]');
+    var pasteHint = root.querySelector('[data-photo-paste-hint]');
     var rawText = document.getElementById('Input_RawText');
     var form = document.querySelector('form[method="post"]');
 
@@ -76,6 +77,66 @@
         var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
         if (file) start(file);
     });
+
+    // Paste. On a desktop the roster usually arrives as a screenshot — a snip of a PDF, a
+    // crop of a team e-mail, an image copied out of a chat — and none of those are a file
+    // on disk. Without this the only way in is "save it somewhere, then go and find it".
+    //
+    // The listener is on the document, not the zone: the zone is not focusable, so a
+    // zone-scoped listener would never fire without a click nobody thinks to make. Paste
+    // anywhere on the page and it lands here.
+    //
+    // It yields to text, which matters because the import textarea sits directly below and
+    // exists to be pasted into. Taking the image only when the clipboard has no text to
+    // offer leaves an ordinary text paste — much the more common one — entirely alone, and
+    // means a clipboard carrying both (copying a region out of a spreadsheet, say) still
+    // does the thing the textarea was asked to do.
+    document.addEventListener('paste', function (e) {
+        if (busyNow) return;
+
+        var data = e.clipboardData;
+        if (!data) return;
+
+        var text = data.getData ? data.getData('text') : '';
+        if (text && text.trim()) return;
+
+        var file = imageFrom(data);
+        if (!file) return;
+
+        // Only once there is definitely an image to read. Everything else — text, an empty
+        // clipboard, a file that is not an image — is left to the browser to handle.
+        e.preventDefault();
+        start(file);
+    });
+
+    // The hint is revealed the same way the control itself is, and for the same reason:
+    // telling someone they can paste is worse than saying nothing if pasting does nothing.
+    if (window.ClipboardEvent && pasteHint) pasteHint.hidden = false;
+
+    // Two ways in, because browsers do not agree on which they fill. `files` is the direct
+    // one and is what a screenshot shows up as in current browsers; `items` is the older
+    // route and still the only populated one in some. A clipboard can also hold several
+    // things at once, so both paths look for the image rather than assuming it is first.
+    function imageFrom(data) {
+        var i;
+
+        if (data.files && data.files.length) {
+            for (i = 0; i < data.files.length; i++) {
+                if (/^image\//.test(data.files[i].type)) return data.files[i];
+            }
+        }
+
+        if (data.items) {
+            for (i = 0; i < data.items.length; i++) {
+                if (data.items[i].kind === 'file' && /^image\//.test(data.items[i].type)) {
+                    var file = data.items[i].getAsFile();
+                    if (file) return file;
+                }
+            }
+        }
+
+        return null;
+    }
 
     // ── view ────────────────────────────────────────────────────────────────
 

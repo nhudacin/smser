@@ -117,8 +117,8 @@ every camera.
 
 ## 📷 Reading a photo
 
-Take a picture of the roster — or drop one in on a desktop — and the text goes straight
-into the import box, which then runs the same parser everything else does.
+Take a picture of the roster — or on a desktop, drop one in or just paste it — and the text
+goes straight into the import box, which then runs the same parser everything else does.
 
 **The OCR runs in your browser**, on a WebAssembly build of Tesseract served from this
 app's own origin. That is a deliberate choice, not a convenience one. A photo of a roster
@@ -134,7 +134,8 @@ caches it afterwards.
 | | |
 |---|---|
 | **On a phone** | The camera button opens the rear camera directly (`capture="environment"`). |
-| **On a desktop** | Drag a photo onto the drop zone, or pick one. The camera button is hidden, because `capture` does nothing there. |
+| **On a desktop** | Drag a photo onto the drop zone, pick one, or paste one from the clipboard. The camera button is hidden, because `capture` does nothing there. |
+| **Pasting a photo** | Works anywhere on the page — a screenshot never has to be saved to disk first. A paste carrying text is left alone, so pasting the roster *as text* into the import box still does what it always did. |
 | **Before recognition** | The image is scaled to 2000px on its long edge and EXIF rotation is applied, so a portrait phone photo does not reach the OCR sideways. |
 | **After** | The text is *appended* to the import box and Import runs automatically — photographing page two does not wipe page one. |
 | **Without JavaScript** | The whole control stays hidden. Pasting still works. |

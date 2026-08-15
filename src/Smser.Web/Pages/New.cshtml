@@ -43,8 +43,15 @@
                             </svg>
                         </span>
 
+                        @* The paste hint starts hidden for the same reason the whole
+                           control does: photo-ocr.js reveals it only once the paste
+                           listener is actually wired up, so it never promises a shortcut
+                           that does nothing. It rides inside .on-fine because pasting is a
+                           keyboard move — there is nothing to press on a phone. *@
                         <p class="photo-title">
-                            <span class="on-fine">Drop a photo of the roster here</span>
+                            <span class="on-fine">
+                                Drop a photo of the roster here<span data-photo-paste-hint hidden>, or paste one</span>
+                            </span>
                             <span class="on-coarse">Snap the roster and it reads itself</span>
                         </p>
                         <p class="photo-or">or</p>
