@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Smser.AppHost/Smser.AppHost.csproj" />
+  <Project Path="Smser.Library/Smser.Library.csproj" />
+  <Project Path="Smser.ServiceDefaults/Smser.ServiceDefaults.csproj" />
+  <Project Path="Smser.Tests/Smser.Tests.csproj" />
+  <Project Path="Smser.Web/Smser.Web.csproj" />
+</Solution>
