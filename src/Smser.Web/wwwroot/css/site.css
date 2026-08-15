@@ -227,6 +227,24 @@ code {
 .roster ol { margin: 12px 0 0; padding-left: 2.4em; columns: 2; column-gap: 32px; }
 .roster li { font-variant-numeric: tabular-nums; }
 
+/* ── offscreen ───────────────────────────────────────────────────────────── */
+
+/* Moves the honeypot field out of sight without using display:none or
+   visibility:hidden, both of which the bots this is aimed at check for and skip. An
+   element positioned off the canvas is still a real, filled-in-able input to anything
+   working from the DOM, and invisible to anyone working from the page.
+
+   Nothing here hides it from assistive technology — that is done in the markup with
+   aria-hidden and tabindex, which is the part that actually keeps a screen reader out
+   of it. See the comment on the field in New.cshtml. */
+.offscreen {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
 /* ── error / not-found ───────────────────────────────────────────────────── */
 
 .message-page { max-width: var(--measure); padding: 48px 0; }

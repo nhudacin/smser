@@ -19,13 +19,16 @@ public class NewModel : PageModel
     private readonly SmsGroupStore _store;
     private readonly QrCodeGenerator _qrCodes;
     private readonly VisitRecorder _visits;
+    private readonly FormGuard _guard;
     private readonly ILogger<NewModel> _logger;
 
-    public NewModel(SmsGroupStore store, QrCodeGenerator qrCodes, VisitRecorder visits, ILogger<NewModel> logger)
+    public NewModel(SmsGroupStore store, QrCodeGenerator qrCodes, VisitRecorder visits,
+        FormGuard guard, ILogger<NewModel> logger)
     {
         _store = store;
         _qrCodes = qrCodes;
         _visits = visits;
+        _guard = guard;
         _logger = logger;
     }
 
@@ -35,6 +38,28 @@ public class NewModel : PageModel
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
+
+    /// <summary>
+    /// The honeypot. Bound so the value posted can be inspected; never rendered back, so a
+    /// browser or password manager that fills it in once does not keep the person locked
+    /// out of the form on every retry.
+    /// </summary>
+    [BindProperty(Name = FormGuard.HoneypotField)]
+    public string? Website { get; set; }
+
+    /// <summary>When the form that produced this post was rendered. See <see cref="FormGuard"/>.</summary>
+    [BindProperty(Name = FormGuard.TimestampField)]
+    public string? Timestamp { get; set; }
+
+    /// <summary>
+    /// The timestamp for the form about to be rendered — the posted one where there is a
+    /// valid one, so an Import round trip does not restart the clock. Lazy rather than set
+    /// in each handler, because every path that returns <c>Page()</c> needs one and a
+    /// handler added later would otherwise render a form with no token and no warning.
+    /// </summary>
+    public string IssuedTimestamp => _issued ??= _guard.CarryOrIssue(Timestamp);
+
+    private string? _issued;
 
     /// <summary>Parsed numbers of the saved roster, for the results panel.</summary>
     public IReadOnlyList<string> Numbers { get; private set; } = [];
@@ -111,6 +136,11 @@ public class NewModel : PageModel
     /// </summary>
     public IActionResult OnPostImport()
     {
+        // Honeypot only. The elapsed-time rule is not applied here because the photo
+        // importer submits this handler automatically the instant the OCR finishes, which
+        // is exactly the "too fast to be a person" shape the rule looks for.
+        if (Refuse(_guard.Inspect(Website, timestamp: null))) return Page();
+
         var parsed = PhoneNumberParser.Parse(Input.RawText);
 
         if (parsed.Count == 0)
@@ -143,6 +173,10 @@ public class NewModel : PageModel
     /// </summary>
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
+        // Before any parsing or storage work. This is the handler that mints an id and
+        // bills a transaction, so it gets both checks.
+        if (Refuse(_guard.Inspect(Website, Timestamp))) return Page();
+
         var numbers = PhoneNumberParser.Parse(Input.Numbers);
 
         if (numbers.Count == 0)
@@ -179,11 +213,38 @@ public class NewModel : PageModel
     }
 
     /// <summary>
+    /// Turns a verdict into a decision. True means the post must not proceed — the reason
+    /// has been logged and a message is already on the page.
+    /// </summary>
+    private bool Refuse(FormVerdict verdict)
+    {
+        if (verdict is FormVerdict.Ok) return false;
+
+        _logger.LogWarning("Refused a {Verdict} submission from {Ip}",
+            verdict, VisitRecorder.ClientIp(HttpContext));
+
+        RecordEvent(verdict is FormVerdict.Honeypot ? VisitEvents.BotHoneypot : VisitEvents.BotTooFast);
+
+        // One message for both verdicts, and vague on purpose. Saying which rule was hit
+        // tells whoever is automating this precisely what to change, and the two rules are
+        // only worth anything for as long as they are not described on the page that
+        // enforces them. A person who trips one is not stuck: the honeypot is never
+        // rendered back with a value in it, so trying again works.
+        ModelState.AddModelError(string.Empty,
+            "That did not look like a form a person filled in, so nothing was saved. Try again.");
+
+        return true;
+    }
+
+    /// <summary>
     /// Notes a save in the audit log. The middleware only sees GETs, so without this a
     /// roster's creation is invisible — the first trace of it would be somebody opening
     /// the link afterwards.
     /// </summary>
     private void RecordRosterEvent(string name, string rosterId, int numberCount) =>
+        RecordEvent(name, rosterId, numberCount);
+
+    private void RecordEvent(string name, string? rosterId = null, int? numberCount = null) =>
         _visits.Record(new VisitEntry
         {
             OccurredAt = DateTimeOffset.UtcNow,

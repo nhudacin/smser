@@ -51,6 +51,16 @@ internal sealed class SmserApp : IDisposable
     }
 
     /// <summary>
+    /// A POST that hands back the response rather than asserting on it, for the cases
+    /// where the status code is the thing under test — a rate limiter answering 429, say.
+    /// </summary>
+    public Task<HttpResponseMessage> PostFormRawAsync(string url, Dictionary<string, string> fields) =>
+        _client.PostAsync(url, new FormUrlEncodedContent(fields));
+
+    /// <summary>A GET that hands back the response, for the same reason.</summary>
+    public Task<HttpResponseMessage> GetRawAsync(string url) => _client.GetAsync(url);
+
+    /// <summary>
     /// A HEAD, for checking that something is served and what headers come back without
     /// pulling a three-megabyte WebAssembly module through the test host to find out.
     /// </summary>

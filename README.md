@@ -52,7 +52,7 @@ the whole roster already filled in.
 | **Shareable, editable** | Every list gets its own short URL. Come back next season, fix a number, regenerate — the link stays the same. |
 | **Works without JavaScript** | Import and Generate are real form posts. The only script on the page is the copy-link button. |
 | **Light and dark** | Theme-aware, and sized for the phone you are actually holding at the game. |
-| **Locked down** | Strict CSP with no `unsafe-inline`, rate limiting, security headers, and no sign-in to leak. |
+| **Locked down** | Strict CSP with no `unsafe-inline`, layered bot protection, per-caller rate limits, security headers, and no sign-in to leak. |
 
 ## 📸 Screenshots
 
@@ -394,6 +394,45 @@ This is an app about other people's phone numbers, so a few things are deliberat
 
 Found something? See [SECURITY.md](SECURITY.md).
 
+### Keeping the bots off an open form
+
+Saving a roster needs no sign-in, which makes it worth automating for anyone who wants to
+fill the storage behind it. There is no captcha, on purpose: every captcha worth having is
+a third-party script on the one page where the roster lives, which would undo the promise
+two bullets above. So the guard is four cheap layers instead, in the order a request meets
+them.
+
+```mermaid
+flowchart LR
+    post["<b>POST /new</b>"] --> af{"Antiforgery<br/><i>token from a form<br/>this app rendered</i>"}
+    af -->|no| refused["<b>Refused</b>"]
+    af -->|yes| rl{"Rate limit<br/><i>per caller, per minute</i>"}
+    rl -->|over| busy["<b>429</b><br/><i>Retry-After: 60</i>"]
+    rl -->|under| hp{"Honeypot<br/><i>hidden field empty?</i>"}
+    hp -->|filled| logged["<b>Refused and logged</b><br/><i>bot-honeypot</i>"]
+    hp -->|empty| clock{"On screen<br/>long enough?"}
+    clock -->|"&lt; 1.5s"| logged2["<b>Refused and logged</b><br/><i>bot-too-fast</i>"]
+    clock -->|yes| saved["<b>Saved</b>"]
+
+    style saved fill:#dcfce7,stroke:#22c55e,color:#14532d
+    style refused fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    style logged fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    style logged2 fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    style busy fill:#fef9c3,stroke:#eab308,color:#713f12
+```
+
+| | |
+|---|---|
+| **Three budgets, not one** | Per caller, per minute: **2 saves**, 10 imports, 30 reads. Rate limiting is endpoint metadata and a Razor Page is one endpoint for its GET and its POST, so a single number would have to be loose enough for the loosest thing the page does. Splitting them inside the policy is what lets the write be held to two while a share link opened by a household behind one address still works. |
+| **The honeypot is not `type="hidden"`** | The bots worth catching skip hidden inputs, because that is where honeypots live. It is a real text input moved off screen by CSS — and taken out of the tab order and hidden from assistive tech, so nobody can land in it by accident. |
+| **It is never rendered with a value** | If a password manager ever fills it in and the page echoed it back, that person could never submit the form again. Every retry starts clean. |
+| **The timestamp is encrypted** | Otherwise anyone who worked out what the field is for could back-date it. It is also *carried through* an Import rather than re-minted, so the clock measures how long you have had the form — not how long since the last round trip. |
+| **Unreadable timestamps pass** | Data protection keys do not survive a restart unless persisted. Failing closed would reject the next save from everyone holding an open page every time the app deploys. |
+| **Refusals are logged** | As `bot-honeypot`, `bot-too-fast` and `throttled`, in the same visit log as everything else — so "is this actually happening" has an answer that is not the storage bill. |
+
+None of these stops a bot written for this app specifically. The rate limit is what bounds
+what such a bot can do, and the log is what makes it visible.
+
 ## 📊 Usage log
 
 Every page view is written to a `visits` table in the same storage account as the rosters.
@@ -401,7 +440,7 @@ Every page view is written to a `visits` table in the same storage account as th
 | Field | |
 |---|---|
 | `OccurredAt` | UTC timestamp |
-| `Event` | `page`, `roster-viewed`, `roster-created`, `roster-updated` |
+| `Event` | `page`, `roster-viewed`, `roster-created`, `roster-updated`, `bot-honeypot`, `bot-too-fast`, `throttled` |
 | `Path` | the URL requested, as typed |
 | `RosterId` | the roster involved, normalised, when the path names one |
 | `Ip` | caller address — the visitor's, because forwarded headers are configured |
@@ -409,11 +448,16 @@ Every page view is written to a `visits` table in the same storage account as th
 | `Country` | only when a front end supplies a country header |
 | `NumberCount` | roster size, on create and update |
 
-**Not logged:** static assets, `/alive`, `/version`, `/health`, and POSTs. App Service
-polls the health endpoint continuously and a page pulls a dozen files, so logging
+**Not logged:** static assets, `/alive`, `/version`, `/health`, and ordinary POSTs. App
+Service polls the health endpoint continuously and a page pulls a dozen files, so logging
 everything would bury the real visits and bill per transaction for the privilege. A save
 posts and then redirects, so counting both would double every roster — the save is
 recorded once, explicitly, as `roster-created`.
+
+The POSTs that *are* recorded are the ones that went wrong: a submission refused as a bot,
+and a caller turned away by the rate limiter. Throttled callers have to be logged from
+inside the limiter, because the visit middleware deliberately sits behind it — so a flood
+is not also a logged flood, and would otherwise leave no trace at all.
 
 **It never slows a page down.** The request thread drops an entry into a bounded in-memory
 queue and returns; a background writer batches them to storage every few seconds. If
