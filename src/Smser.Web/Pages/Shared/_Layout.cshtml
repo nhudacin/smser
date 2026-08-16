@@ -16,11 +16,22 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    @*
+        The wordmark is type, not an image. It was an SVG whose viewBox was the invalid
+        string "0 0" — with no intrinsic aspect ratio the browser fell back to a 300px box
+        and the glyphs floated inside it, which is what made the logo look clipped and
+        indented. Setting it as real type fixes it and removes the asset.
+
+        .bar is an inner wrapper so the rule under the header spans the window while its
+        contents line up with the page below.
+    *@
     <header class="site-header">
-        <a class="brand" href="/">
-            <img src="~/smser.svg" alt="SMSer" width="120" height="25" />
-        </a>
-        <p class="tagline">Making group text management a little easier</p>
+        <div class="bar">
+            <a class="brand" href="/">SMSer<span class="brand-dot">.</span></a>
+            <span class="bar-rule" aria-hidden="true"></span>
+            <p class="tagline">Making group text management a little easier</p>
+            <a class="bar-source" href="https://github.com/nhudacin/smser" target="_blank" rel="noopener noreferrer">Source</a>
+        </div>
     </header>
 
     <main class="site-main">
@@ -28,9 +39,12 @@
     </main>
 
     <footer class="site-footer">
-        <span>By</span>
-        <img src="~/nick.svg" alt="Nick Hudacin" width="80" height="40" />
-        <a href="https://github.com/nhudacin/smser" target="_blank" rel="noopener noreferrer">Source</a>
+        <div class="bar">
+            <span class="brand">SMSer<span class="brand-dot">.</span></span>
+            <span class="bar-rule" aria-hidden="true"></span>
+            <span>By Nick Hudacin</span>
+            <a class="bar-source" href="https://github.com/nhudacin/smser" target="_blank" rel="noopener noreferrer">Source</a>
+        </div>
     </footer>
 
     <script src="~/js/site.js" asp-append-version="true"></script>
