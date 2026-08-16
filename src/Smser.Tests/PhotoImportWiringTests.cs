@@ -30,14 +30,39 @@ public class PhotoImportWiringTests
     public static void Stop() => _app.Dispose();
 
     [TestMethod]
-    public void The_photo_control_is_hidden_until_script_reveals_it()
+    public void The_tablist_is_hidden_until_script_reveals_it()
     {
-        // None of it works without JavaScript. A camera button that cannot open a camera
-        // is worse than no camera button, so the markup ships hidden and photo-ocr.js is
-        // what turns it on.
+        // None of the photo path works without JavaScript. A tab that switches to a dead
+        // control is worse than no tab, so the tablist ships hidden and photo-ocr.js is
+        // what turns it on — the job the photo field itself used to do before the tabs.
         Assert.IsTrue(
-            Regex.IsMatch(_page, @"<div class=""field"" data-photo hidden"),
-            "the photo block must render with the hidden attribute");
+            Regex.IsMatch(_page, @"<div class=""tabs"" data-import-tabs role=""tablist""[^>]*\shidden"),
+            "the tablist must render with the hidden attribute");
+    }
+
+    [TestMethod]
+    public void The_photo_panel_is_hidden_until_script_reveals_it()
+    {
+        // The other half of the same guarantee: with no script the tabs never appear, so
+        // a photo panel that did not ship hidden would simply be stacked below the
+        // textarea with nothing able to hide it again.
+        Assert.IsTrue(
+            Regex.IsMatch(_page, @"id=""panel-photo""[^>]*\shidden"),
+            "the photo panel must render with the hidden attribute");
+    }
+
+    [TestMethod]
+    public void The_paste_panel_ships_visible()
+    {
+        // With JavaScript off this is the whole field: label, textarea, hint, exactly as
+        // it was before the tabs existed. Shipping this panel hidden too — the easy
+        // mistake when adding a third tab, say — would leave a page with no way to enter
+        // a roster at all, and every other test here would still pass.
+        var panel = Regex.Match(_page, @"<div class=""tab-panel"" id=""panel-paste""[^>]*>");
+
+        Assert.IsTrue(panel.Success, "the paste panel is missing");
+        Assert.IsFalse(panel.Value.Contains("hidden", StringComparison.Ordinal),
+            "the paste panel must not ship hidden — it is the no-JavaScript form");
     }
 
     [TestMethod]
@@ -90,6 +115,19 @@ public class PhotoImportWiringTests
 
         StringAssert.Contains(script, "if (text && text.trim()) return;",
             "the paste listener must stand down when the clipboard holds text");
+    }
+
+    [TestMethod]
+    public async Task A_finished_read_returns_to_the_paste_tab()
+    {
+        // The reason the tabs exist. The photo tab fills the paste box, so once it has,
+        // it hands back — landing the reader on the text they can now correct rather than
+        // on a spent progress bar. Nothing in the markup shows whether this still happens.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+        var finish = script[script.IndexOf("function finish(", StringComparison.Ordinal)..];
+
+        StringAssert.Contains(finish, "selectTab('paste')",
+            "a finished read must return to the paste tab, where the text it read now is");
     }
 
     [TestMethod]

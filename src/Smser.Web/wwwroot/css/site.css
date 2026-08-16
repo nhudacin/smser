@@ -84,6 +84,12 @@
 
     --danger: #b42318;
     --notice-bg: #eef8f6;
+
+    /* The track the import tabs sit in: the warm paper darkened one step. --border is
+       too close to the white selected pill to read as a track behind it, and --notice-bg
+       is mint rather than paper. */
+    --track: #efe9df;
+
     --shadow: 0 2px 0 var(--border), 0 18px 40px rgba(22, 32, 50, .08);
     --radius: 8px;
     --radius-card: 18px;
@@ -123,6 +129,10 @@
 
     --danger: #fca5a5;
     --notice-bg: #17231f;
+
+    /* One step up from --bg-raised, which is the same relationship the light pair has. */
+    --track: #262119;
+
     --shadow: 0 2px 0 var(--border), 0 18px 40px rgba(0, 0, 0, .45);
 }
 
@@ -351,6 +361,64 @@ code {
     outline-offset: 2px;
 }
 
+/* ── the import tabs ─────────────────────────────────────────────────────── */
+
+/* Paste text | Photo of the roster. The two are alternatives that fill the same box, so
+   they sit behind a tab apiece rather than stacked as if they were steps.
+
+   display has to be re-asserted through :not([hidden]) rather than set flat. A bare
+   `.tabs { display: inline-flex }` outranks the user-agent's `[hidden] { display: none }`,
+   which would show the tablist to exactly the people it must not be shown to — the ones
+   with no JavaScript, for whom the photo tab leads nowhere. Same trap as .photo-busy. */
+.tabs {
+    display: none;
+    padding: 3px;
+    gap: 3px;
+    background: var(--track);
+    border-radius: var(--radius-pill);
+    margin-bottom: 12px;
+}
+
+.tabs:not([hidden]) { display: inline-flex; }
+
+.tab {
+    padding: 8px 18px;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+}
+
+/* The selected tab is a raised pill sitting on the track. In dark, the pill and the
+   track are a close pair by design — which is why the shadow and the shift from muted to
+   full-strength ink carry as much of the state as the fill does. */
+.tab[aria-selected="true"] {
+    background: var(--bg-raised);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(22, 32, 50, .12);
+}
+
+/* The one dark-mode adjustment the handoff asks for by name, and it is needed:
+   --bg-raised on --track is #1b1815 on #262119, a 1.1:1 pair, so as a fill the selected
+   pill is simply not there — and the shadow that carries it in light is a near-black
+   shadow on near-black paper. The hairline and the muted-to-full ink shift state the
+   selection instead.
+
+   The transparent border on the unselected tab is what keeps both boxes the same size,
+   so the tablist does not jump 2px wider each time the selection moves. */
+:root[data-theme="dark"] .tab { border: 1px solid transparent; }
+:root[data-theme="dark"] .tab[aria-selected="true"] { border-color: var(--border); }
+
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* One tab, two labels, CSS picks — the same trick .photo-title plays for pointer types.
+   The long one is the desktop label; the narrow rules below swap them. */
+.tab-short { display: none; }
+
 .hint { margin: 8px 0 0; color: var(--ink-muted); font-size: .85rem; line-height: 1.6; }
 .hint-center { text-align: center; max-width: 44ch; margin: 20px auto 0; font-size: .88rem; }
 
@@ -520,8 +588,6 @@ code {
 
 /* ── photo import ────────────────────────────────────────────────────────── */
 
-.field-label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: 8px; }
-
 .photo {
     position: relative;
     border: 1.5px dashed var(--border);
@@ -655,6 +721,14 @@ code {
 
     .split { padding: 24px var(--gutter) 32px; }
     .panel h1 { font-size: 1.5rem; }
+
+    /* The tabs go full width and split the row evenly. "Photo of the roster" does not
+       fit beside "Paste text" at 390px, so the tab takes its short label instead of
+       wrapping to two lines. */
+    .tabs:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; }
+    .tab { padding: 10px 12px; }
+    .tab-long { display: none; }
+    .tab-short { display: inline; }
 
     .message-page { padding: 40px var(--gutter); }
 

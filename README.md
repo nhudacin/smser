@@ -137,8 +137,8 @@ caches it afterwards.
 | **On a desktop** | Drag a photo onto the drop zone, pick one, or paste one from the clipboard. The camera button is hidden, because `capture` does nothing there. |
 | **Pasting a photo** | Works anywhere on the page — a screenshot never has to be saved to disk first. A paste carrying text is left alone, so pasting the roster *as text* into the import box still does what it always did. |
 | **Before recognition** | The image is scaled to 2000px on its long edge and EXIF rotation is applied, so a portrait phone photo does not reach the OCR sideways. |
-| **After** | The text is *appended* to the import box and Import runs automatically — photographing page two does not wipe page one. |
-| **Without JavaScript** | The whole control stays hidden. Pasting still works. |
+| **After** | The text is *appended* to the import box, the field returns to its **Paste text** tab so the reading can be corrected, and Import runs automatically — photographing page two does not wipe page one. |
+| **Without JavaScript** | The tabs never appear and the whole control stays hidden. Pasting still works. |
 
 OCR output is messy by nature, which suits this app: the parser was already built to find
 numbers in garbled text and ignore the rest. What comes out of a photo is exactly the kind
@@ -341,7 +341,7 @@ dotnet test --solution src/Smser.slnx
 | `PhoneNumberParserTests` | Every format, numbers buried in prose, run-together digits, and a long list of things that must **not** parse. |
 | `SampleRosterTests` | Every file in [`samples/`](samples/) against its `.expected` result, plus a guard that no sample yields a number outside the reserved range. |
 | `NewPageFormWiringTests` | Boots the real app and asserts on rendered HTML — the form's `action` and the buttons' `formaction`. |
-| `PhotoImportWiringTests` | That the photo control ships hidden, asks for the rear camera, every vendored asset is served, and the CSP still permits the engine to compile. |
+| `PhotoImportWiringTests` | That the import tabs and the photo panel ship hidden while the paste panel does not, the camera asks for the rear one, every vendored asset is served, and the CSP still permits the engine to compile. |
 | `VisitRecorderTests` | What the audit log records and — mostly — what it deliberately does not. |
 | `ShortIdTests` · `SmsLinkTests` · `QrCodeGeneratorTests` | Id keyspace and validation, link format, QR rendering and its capacity ceiling. |
 
