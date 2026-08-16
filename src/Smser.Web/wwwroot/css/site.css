@@ -87,8 +87,10 @@
 
     /* The track the import tabs sit in: the warm paper darkened one step. --border is
        too close to the white selected pill to read as a track behind it, and --notice-bg
-       is mint rather than paper. */
+       is mint rather than paper. --track-raised is the selected pill that sits on it, and
+       it has to be lighter than the track — that lift is what "selected" looks like. */
     --track: #efe9df;
+    --track-raised: #ffffff;
 
     --shadow: 0 2px 0 var(--border), 0 18px 40px rgba(22, 32, 50, .08);
     --radius: 8px;
@@ -130,8 +132,18 @@
     --danger: #fca5a5;
     --notice-bg: #17231f;
 
-    /* One step up from --bg-raised, which is the same relationship the light pair has. */
+    /* The track is one step up from --bg-raised. The selected pill then has to be lighter
+       still, and cannot be --bg-raised the way it is in light: --bg-raised is *darker*
+       than the track here, so using it would put the selected tab in a dip rather than on
+       a lift — inverted from light, and a 1.1:1 pair, which is to say invisible.
+
+       #453f36 gets that to 1.5:1 while the track still separates from the page. 3:1 is
+       not reachable at these luminances: the pill would have to be around #6d6559, a
+       light-grey slab halfway to --ink-muted, which is a different design. The label
+       carries the rest — full-strength ink on the selected tab against muted on the
+       track, 8.9:1 and 5.9:1 respectively, plus aria-selected for anything listening. */
     --track: #262119;
+    --track-raised: #453f36;
 
     --shadow: 0 2px 0 var(--border), 0 18px 40px rgba(0, 0, 0, .45);
 }
@@ -393,25 +405,15 @@ code {
     cursor: pointer;
 }
 
-/* The selected tab is a raised pill sitting on the track. In dark, the pill and the
-   track are a close pair by design — which is why the shadow and the shift from muted to
-   full-strength ink carry as much of the state as the fill does. */
+/* The selected tab is a pill raised off the track — in both palettes, which is what
+   --track-raised is for. The shadow is the light palette's other half of that lift; in
+   dark it is a near-black shadow on near-black paper and does nothing, so the fill and
+   the shift from muted to full-strength ink carry the state there. */
 .tab[aria-selected="true"] {
-    background: var(--bg-raised);
+    background: var(--track-raised);
     color: var(--ink);
     box-shadow: 0 1px 2px rgba(22, 32, 50, .12);
 }
-
-/* The one dark-mode adjustment the handoff asks for by name, and it is needed:
-   --bg-raised on --track is #1b1815 on #262119, a 1.1:1 pair, so as a fill the selected
-   pill is simply not there — and the shadow that carries it in light is a near-black
-   shadow on near-black paper. The hairline and the muted-to-full ink shift state the
-   selection instead.
-
-   The transparent border on the unselected tab is what keeps both boxes the same size,
-   so the tablist does not jump 2px wider each time the selection moves. */
-:root[data-theme="dark"] .tab { border: 1px solid transparent; }
-:root[data-theme="dark"] .tab[aria-selected="true"] { border-color: var(--border); }
 
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
