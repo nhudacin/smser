@@ -10,11 +10,19 @@
         Paste a roster — however garbled it came off your phone — and get back a link
         and a QR code that open a group message with everyone already in it.
     </p>
-    <a class="button button-large" href="/new">Start a new list</a>
+    <div class="hero-actions">
+        <a class="button button-large" href="/new">Start a new list</a>
+        <span class="hero-aside">takes about a minute</span>
+    </div>
 </div>
 
+@*
+    The step numerals are decorative — the headings already carry the order, and reading
+    "one" before "Paste anything" adds nothing.
+*@
 <div class="cards">
     <section class="card">
+        <p class="card-step" aria-hidden="true">1</p>
         <h2>Paste anything</h2>
         <p>
             Names, jersey numbers, e-mail addresses, whatever the camera's "copy as text"
@@ -22,6 +30,7 @@
         </p>
     </section>
     <section class="card">
+        <p class="card-step" aria-hidden="true">2</p>
         <h2>Scan or tap</h2>
         <p>
             Scan the QR code with a phone, or tap the mobile link, and the messaging app
@@ -29,6 +38,7 @@
         </p>
     </section>
     <section class="card">
+        <p class="card-step" aria-hidden="true">3</p>
         <h2>Keep the link</h2>
         <p>
             Every list gets its own short URL. Come back to it next season, fix a number,
