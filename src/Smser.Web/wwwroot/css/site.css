@@ -83,6 +83,17 @@
     --accent-strong-hover: #00655a;
 
     --danger: #b42318;
+
+    /* The generate gate's unticked state: the danger red taken down to a tint that can
+       hold body text, and one step of it darker for the edge. Nowhere near the ratios
+       --danger itself needs — nothing is written *in* these, they are only ground. */
+    --danger-bg: #fdf0ed;
+    --danger-border: #f0c4bc;
+
+    /* Generate before the box is ticked. Warm grey on the track, ~2.6:1 — deliberately
+       under the text threshold, because "you cannot use this yet" is the whole message. */
+    --ink-disabled: #a49c92;
+
     --notice-bg: #eef8f6;
 
     /* The track the import tabs sit in: the warm paper darkened one step. --border is
@@ -130,6 +141,14 @@
     --accent-strong-hover: #6ee3d3;
 
     --danger: #fca5a5;
+
+    /* Inverted the way the rest of the dark palette is: the tint is a dark red ground
+       rather than a pale one, so --danger still reads as the warning written on it. */
+    --danger-bg: #2b1a17;
+    --danger-border: #5c302a;
+
+    --ink-disabled: #6b655c;
+
     --notice-bg: #17231f;
 
     /* The track is one step up from --bg-raised. The selected pill then has to be lighter
@@ -491,6 +510,77 @@ code {
 }
 
 .button-secondary:hover { color: var(--ink); background: var(--border); }
+
+/* ── the generate gate ───────────────────────────────────────────────────── */
+
+/* Generate lives inside the confirmation rather than below it, so the claim and the
+   button that acts on it cannot be read apart. Unticked, the panel is tinted red; ticked
+   it settles to the same raised paper as everything else and stops asking. */
+.gate {
+    margin: 22px 0 26px;
+    padding: 18px 20px;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    border-radius: 12px;
+}
+
+.gate:has(:checked) { background: var(--bg-raised); border-color: var(--border); }
+
+.gate-check { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+
+/* appearance:none because the native box cannot be made red, and a checkbox that is not
+   visibly part of the warning is just a checkbox. Sized to the text beside it. */
+.gate-check input {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin: 1px 0 0;
+    appearance: none;
+    background: var(--bg-raised);
+    border: 2px solid var(--danger);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.gate-check input:checked { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+/* The tick, drawn as two edges of a rotated box — no image to fetch and no glyph to hope
+   the platform has. */
+.gate-check input:checked::after {
+    content: "";
+    display: block;
+    width: 5px;
+    height: 10px;
+    margin: 1px auto 0;
+    border: solid var(--accent-ink);
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+}
+
+.gate-check input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.gate-title { display: block; font-weight: 700; font-size: .95rem; color: var(--danger); margin-bottom: 3px; }
+.gate-why { display: block; font-size: .88rem; line-height: 1.55; color: var(--ink); }
+
+/* Ticked, the warning has been answered, so it stops shouting: the claim drops to the
+   page's own ink and its reason to muted, and the panel reads as a settled statement. */
+.gate:has(:checked) .gate-title { font-weight: 600; color: var(--ink); }
+.gate:has(:checked) .gate-why { color: var(--ink-muted); }
+
+.gate-actions { align-items: center; gap: 14px; margin: 16px 0 0; }
+
+.gate-nudge { font-size: .85rem; color: var(--ink-muted); }
+.gate:has(:checked) .gate-nudge { display: none; }
+
+/* Looks unavailable, is not. The checkbox carries `required`, so pressing this before
+   ticking makes the browser point straight at the box — which is more use than a
+   disabled button that swallows the click and explains nothing. That is the one
+   deviation from the handoff, which draws the button `disabled` and cursor:not-allowed;
+   the cursor stays a pointer here because the press does something. */
+.gate:not(:has(:checked)) .button {
+    color: var(--ink-disabled);
+    background: var(--track);
+}
 
 /* ── the QR card ─────────────────────────────────────────────────────────── */
 

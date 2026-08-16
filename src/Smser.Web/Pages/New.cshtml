@@ -182,14 +182,45 @@
                 <textarea asp-for="Input.Numbers" rows="10" class="numbers" placeholder="(219) 555-0113"></textarea>
                 <p class="hint">
                     One per line. Edit freely — anything you type is re-checked when you generate.
-                    <br />
-                    <strong>Important:</strong> remove your own number if it is in the list.
                 </p>
                 <span asp-validation-for="Input.Numbers" class="validation-message"></span>
             </div>
 
-            <div class="actions">
-                <button type="submit" class="button">@(Model.HasResult ? "Regenerate" : "Generate")</button>
+            @*
+                The gate. "Remove your own number" used to be a bold line in the hint above,
+                which is the one warning on this page that is worth more than prose: leave
+                yourself in and iPhones split the group into two threads, so half the roster
+                sees half the replies and nobody can tell why.
+
+                So it stops being advice and becomes a step. The claim and the button share
+                a box that is tinted red until the box is ticked, and the checkbox is
+                `required` rather than the button being `disabled` — a disabled button is a
+                dead end that says nothing, where required makes the browser point at the
+                thing that needs doing, and keeps working with JavaScript off. The disabled
+                *look* is CSS, from :has(:checked) on the panel.
+
+                Never rendered back as ticked on a fresh form: OnGetAsync leaves it false on
+                /new/{id}, so editing a saved roster asks again before regenerating. The
+                list can have changed since it was last confirmed.
+            *@
+            <div class="gate">
+                <label class="gate-check">
+                    <input asp-for="Input.OwnNumberExcluded" required />
+                    <span>
+                        <span class="gate-title">My own number is not in this list</span>
+                        <span class="gate-why">
+                            If it is, iPhones split the group into two threads and everyone
+                            gets half the replies.
+                        </span>
+                    </span>
+                </label>
+
+                <div class="actions gate-actions">
+                    <button type="submit" class="button">@(Model.HasResult ? "Regenerate" : "Generate")</button>
+                    <span class="gate-nudge">Tick the box to continue.</span>
+                </div>
+
+                <span asp-validation-for="Input.OwnNumberExcluded" class="validation-message"></span>
             </div>
         </form>
     </section>
