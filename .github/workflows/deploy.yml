@@ -75,6 +75,41 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # Run the app from the deployed package instead of unpacking it into the site
+      # directory. Without this a deploy is an incremental file copy: anything that
+      # disappears from the build stays on the App Service filesystem and carries on being
+      # served. The two SVGs deleted in #16 were still answering 200 in production after a
+      # clean deploy, with a Last-Modified from an earlier one — and nothing catches that,
+      # because a fresh build 404s them correctly and CI only ever sees a fresh build.
+      # Mounting the package makes the served file set exactly the built file set.
+      #
+      # Only written when it is not already 1. Changing an app setting restarts the app,
+      # and the deploy below restarts it anyway; this keeps that at one restart per deploy
+      # rather than two.
+      #
+      # This makes the site root read-only, which nothing here needs: no code writes to the
+      # content root, and Data Protection keys live under %HOME%, outside the mount.
+      - name: Ensure the app runs from its package
+        run: |
+          set -euo pipefail
+
+          current=$(az webapp config appsettings list \
+            --name "${{ secrets.AZURE_WEBAPP_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --query "[?name=='WEBSITE_RUN_FROM_PACKAGE'].value | [0]" \
+            --output tsv)
+
+          if [ "${current:-}" = "1" ]; then
+            echo "WEBSITE_RUN_FROM_PACKAGE is already 1"
+          else
+            echo "::notice::setting WEBSITE_RUN_FROM_PACKAGE=1 (was: ${current:-unset})"
+            az webapp config appsettings set \
+              --name "${{ secrets.AZURE_WEBAPP_NAME }}" \
+              --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+              --settings WEBSITE_RUN_FROM_PACKAGE=1 \
+              --output none
+          fi
+
       # Names come from secrets rather than being written here, so the public workflow
       # file says nothing about how the Azure side is laid out.
       - name: Deploy

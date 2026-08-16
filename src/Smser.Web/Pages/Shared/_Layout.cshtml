@@ -14,6 +14,12 @@
     <meta name="description" content="Group texts, easier. Paste a roster, get a link that opens a group message with everyone already in it." />
     <link rel="icon" href="~/favicon.ico" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    @* In <head>, and render-blocking on purpose. It applies a saved dark choice to <html>
+       before the first paint; loaded at the bottom with site.js it would instead produce a
+       flash of the light palette on every navigation. It is a file rather than an inline
+       script because script-src carries no 'unsafe-inline'. *@
+    <script src="~/js/theme.js" asp-append-version="true"></script>
 </head>
 <body>
     @*
@@ -30,6 +36,11 @@
             <a class="brand" href="/">SMSer<span class="brand-dot">.</span></a>
             <span class="bar-rule" aria-hidden="true"></span>
             <p class="tagline">Making group text management a little easier</p>
+
+            @* Ships hidden and is revealed by theme.js, like the photo control: without
+               JavaScript it could not switch anything, and the page is light regardless. *@
+            <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" hidden>Dark</button>
+
             <a class="bar-source" href="https://github.com/nhudacin/smser" target="_blank" rel="noopener noreferrer">Source</a>
         </div>
     </header>

@@ -126,6 +126,51 @@ public class AppearanceWiringTests
     }
 
     [TestMethod]
+    public async Task Dark_is_chosen_rather_than_detected()
+    {
+        // The palette used to be behind prefers-color-scheme, which handed the decision to
+        // the handset. Putting that media query back would silently take the default away
+        // from every reader whose phone is set to dark — which is most of them — and the
+        // switch would then disagree with what they see on first load.
+        var css = await _app.GetPageAsync("/css/site.css");
+
+        // Comments stripped first. The stylesheet names prefers-color-scheme in a comment
+        // explaining why it is *not* used, and that comment is the thing most likely to
+        // stop a future reader putting it back — so the assertion has to look at the rules
+        // rather than the file.
+        var rules = Regex.Replace(css, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline);
+
+        Assert.IsFalse(Regex.IsMatch(rules, @"@media[^{]*prefers-color-scheme"),
+            "the OS preference must not pick the palette; dark is opt-in via the switch");
+        StringAssert.Contains(css, ":root[data-theme=\"dark\"]",
+            "the dark palette is gone — the switch would have nothing to turn on");
+    }
+
+    [TestMethod]
+    public void The_theme_switch_is_hidden_until_script_reveals_it()
+    {
+        // Same rule as the photo control and the paste hint: without JavaScript it cannot
+        // switch anything, and the page is light either way.
+        Assert.IsTrue(Regex.IsMatch(_home, @"<button type=""button"" class=""theme-toggle"" data-theme-toggle aria-pressed=""false"" hidden>"),
+            "the theme switch must render hidden, with aria-pressed");
+    }
+
+    [TestMethod]
+    public async Task The_theme_script_is_loaded_before_the_page_paints()
+    {
+        // In <head>, not with site.js at the bottom. Loaded late it still works, but a
+        // reader who chose dark gets a full flash of the light palette on every
+        // navigation — which looks like a bug and is invisible to anyone testing in light.
+        var head = Regex.Match(_home, @"<head>.*?</head>", RegexOptions.Singleline).Value;
+
+        StringAssert.Contains(head, "/js/theme.js", "theme.js must load in <head>");
+
+        var response = await _app.HeadAsync("/js/theme.js");
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode, "theme.js is not being served");
+    }
+
+    [TestMethod]
     public void The_step_numerals_are_hidden_from_assistive_technology()
     {
         // They are ornament — the headings already carry the order, and "one, Paste
