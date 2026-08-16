@@ -102,6 +102,18 @@ public class NewModel : PageModel
         [StringLength(RosterLimits.MaxRawTextLength, ErrorMessage = "That is more than {1} characters.")]
         [Display(Name = "Phone numbers")]
         public string? Numbers { get; set; }
+
+        /// <summary>
+        /// The generate gate: has the person confirmed their own number is not in the list?
+        ///
+        /// Checked server side as well as by the browser, because the <c>required</c>
+        /// attribute on the checkbox is only a courtesy — anything posting the form
+        /// directly simply omits the field. Not an attribute on the property: the stock
+        /// messages for "this bool must be true" all read like a schema violation rather
+        /// than the one thing the person still has to do.
+        /// </summary>
+        [Display(Name = "My own number is not in this list")]
+        public bool OwnNumberExcluded { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken)
@@ -176,6 +188,12 @@ public class NewModel : PageModel
         // Before any parsing or storage work. This is the handler that mints an id and
         // bills a transaction, so it gets both checks.
         if (Refuse(_guard.Inspect(Website, Timestamp))) return Page();
+
+        if (!Input.OwnNumberExcluded)
+        {
+            ModelState.AddModelError($"{nameof(Input)}.{nameof(InputModel.OwnNumberExcluded)}",
+                "Tick the box to confirm your own number is not in the list.");
+        }
 
         var numbers = PhoneNumberParser.Parse(Input.Numbers);
 
