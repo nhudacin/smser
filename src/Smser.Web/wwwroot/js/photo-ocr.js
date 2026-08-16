@@ -29,6 +29,7 @@
     var fileInput = root.querySelector('[data-photo-file]');
     var captureInput = root.querySelector('[data-photo-capture]');
     var pasteHint = root.querySelector('[data-photo-paste-hint]');
+    var pasteButton = root.querySelector('[data-photo-paste]');
     var rawText = document.getElementById('Input_RawText');
     var form = document.querySelector('form[method="post"]');
 
@@ -180,6 +181,74 @@
     // The hint is revealed the same way the control itself is, and for the same reason:
     // telling someone they can paste is worse than saying nothing if pasting does nothing.
     if (window.ClipboardEvent && pasteHint) pasteHint.hidden = false;
+
+    // The other half of pasting, and the only half a phone has.
+    //
+    // Everything above is the paste *event*, which is a push: the browser fires it at a
+    // focused editable element when a paste gesture lands on one. That is why it works on
+    // a laptop and cannot work here on a phone. There is no editable element in this panel
+    // to paste into — a <textarea> would refuse an image even if there were one — so on a
+    // handset the event simply never arrives, and the hint that advertises it is hidden by
+    // `.on-fine` precisely because it would be a lie.
+    //
+    // Reading the clipboard is the pull direction, and it is the direction a phone offers.
+    // Revealed only where the API exists, which is the rule the hint and the whole control
+    // already follow: a button that cannot do the thing it names is worse than no button.
+    if (pasteButton && navigator.clipboard && navigator.clipboard.read) {
+        pasteButton.hidden = false;
+        pasteButton.addEventListener('click', readClipboard);
+    }
+
+    function readClipboard() {
+        if (busyNow) return;
+
+        // Called as the very first thing in the click handler, with nothing awaited in
+        // front of it. Reading the clipboard is something a user gesture permits rather
+        // than something the page may do, and that permission is already gone by the time
+        // an earlier promise resolves — so an await here costs the whole feature.
+        var reading;
+        try {
+            reading = navigator.clipboard.read();
+        } catch (error) {
+            reading = Promise.reject(error);
+        }
+
+        reading.then(imageFromClipboard).then(function (file) {
+            if (!file) {
+                showBusy('');
+                fail('Nothing on the clipboard looked like an image. Copy a photo first, ' +
+                    'or use Take a photo.');
+                return;
+            }
+
+            start(file);
+        }).catch(function () {
+            showBusy('');
+
+            // Every failure here is the same failure from where the person is standing:
+            // the browser would not hand the clipboard over. Whether that was a denied
+            // permission, a dismissed prompt or an empty clipboard, naming it helps nobody
+            // and NotAllowedError helps least of all.
+            fail('Could not read the clipboard. Some browsers ask permission first — ' +
+                'otherwise use Take a photo or Choose a photo.');
+        });
+    }
+
+    // ClipboardItem rather than a file list: each item advertises its types and hands over
+    // the blob only when asked. A screenshot usually arrives as image/png and a photo out
+    // of the camera roll as image/jpeg, so both paths match on the type rather than
+    // assuming one — the same reason imageFrom() above looks instead of taking the first.
+    function imageFromClipboard(items) {
+        for (var i = 0; i < items.length; i++) {
+            var types = items[i].types || [];
+
+            for (var j = 0; j < types.length; j++) {
+                if (/^image\//.test(types[j])) return items[i].getType(types[j]);
+            }
+        }
+
+        return null;
+    }
 
     // Two ways in, because browsers do not agree on which they fill. `files` is the direct
     // one and is what a screenshot shows up as in current browsers; `items` is the older

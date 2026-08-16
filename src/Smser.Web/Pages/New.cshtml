@@ -124,6 +124,20 @@
                                 <button type="button" class="button button-secondary" data-photo-choose>
                                     Choose a photo
                                 </button>
+
+                                @* The only way to paste on a phone, and it ships hidden for
+                                   the same reason everything else here does: photo-ocr.js
+                                   reveals it once it has confirmed the browser can actually
+                                   read the clipboard.
+
+                                   The paste *hint* above is a different feature that only
+                                   looks like this one. It advertises the paste event, which
+                                   needs a focused editable element to fire into — there is
+                                   none in this panel, so on a phone that event never comes.
+                                   This button asks the clipboard for the image instead. *@
+                                <button type="button" class="button button-secondary" data-photo-paste hidden>
+                                    Paste a photo
+                                </button>
                             </div>
 
                             <p class="photo-note">

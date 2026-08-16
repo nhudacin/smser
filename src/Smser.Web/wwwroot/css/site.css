@@ -734,6 +734,14 @@ code {
    ending a form, and at the full 14px/30px they dominate the control they belong to. */
 .photo-actions .button { padding: 11px 22px; font-size: .95rem; }
 
+/* The same trap .tabs and .photo-busy document, sprung from the other side. There the
+   display was being set on the thing that also carries [hidden]; here it is .button's own
+   `display: inline-block`, which is an author rule and so beats the user agent's
+   `[hidden] { display: none }` whatever the specificity. Without this the Paste a photo
+   button ships visible in every browser that cannot read the clipboard — which is exactly
+   the promise it exists not to make. */
+.photo-actions .button[hidden] { display: none; }
+
 /* The camera button is only useful where there is a camera. A coarse pointer is the
    closest honest proxy — on a desktop the `capture` attribute is ignored and the button
    would open the same file dialog as the one beside it, which is just confusing. */
