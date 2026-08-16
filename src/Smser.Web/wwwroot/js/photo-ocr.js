@@ -32,6 +32,14 @@
     var rawText = document.getElementById('Input_RawText');
     var form = document.querySelector('form[method="post"]');
 
+    var tabs = document.querySelector('[data-import-tabs]');
+    var pastePanel = document.getElementById('panel-paste');
+
+    // The tabs are the only way into the photo panel, so without them there is no way in.
+    // Bailing leaves the field as its no-JS self — label, textarea, hint — which is the
+    // right fallback rather than a photo panel that nothing can open.
+    if (!tabs || !pastePanel) return;
+
     // Longest edge the image is scaled to before recognition. A modern phone photo is
     // 3000-4000px, which costs several seconds of OCR for detail that tesseract cannot
     // use. Below about 1200 the digits start to break up, so this leaves headroom.
@@ -40,8 +48,64 @@
     var LIB = '/lib/tesseract/';
     var busyNow = false;
 
-    // The control is hidden in the markup; this is what turns it on.
-    root.hidden = false;
+    // ── tabs ────────────────────────────────────────────────────────────────
+
+    var tabButtons = tabs.querySelectorAll('[data-import-tab]');
+
+    // The tablist is hidden in the markup; this is what turns it on. From here the tabs
+    // own which panel is showing — including the photo panel's own `hidden`, which is why
+    // nothing sets it directly any more.
+    tabs.hidden = false;
+    selectTab('paste');
+
+    for (var t = 0; t < tabButtons.length; t++) {
+        tabButtons[t].addEventListener('click', function () {
+            // `this` rather than the event target, because the click may well land on one
+            // of the two label spans inside the button. Focus is left where the pointer
+            // put it; moving it on a click only fights the mouse.
+            selectTab(this.getAttribute('data-import-tab'));
+        });
+    }
+
+    // Arrows move and select in one go — automatic activation, which costs nothing with
+    // two tabs. This is what the roving tabindex in the markup is for: only the selected
+    // tab is in the tab order, so Tab leaves the control instead of walking through it.
+    tabs.addEventListener('keydown', function (e) {
+        var current = tabIndexOf(document.activeElement);
+        if (current < 0) return;
+
+        var next;
+        if (e.key === 'ArrowLeft') next = current - 1;
+        else if (e.key === 'ArrowRight') next = current + 1;
+        else if (e.key === 'Home') next = 0;
+        else if (e.key === 'End') next = tabButtons.length - 1;
+        else return;
+
+        e.preventDefault();
+
+        next = (next + tabButtons.length) % tabButtons.length;
+        selectTab(tabButtons[next].getAttribute('data-import-tab'));
+        tabButtons[next].focus();
+    });
+
+    function selectTab(name) {
+        for (var i = 0; i < tabButtons.length; i++) {
+            var chosen = tabButtons[i].getAttribute('data-import-tab') === name;
+
+            tabButtons[i].setAttribute('aria-selected', chosen ? 'true' : 'false');
+            tabButtons[i].tabIndex = chosen ? 0 : -1;
+        }
+
+        pastePanel.hidden = name !== 'paste';
+        root.hidden = name !== 'photo';
+    }
+
+    function tabIndexOf(element) {
+        for (var i = 0; i < tabButtons.length; i++) {
+            if (tabButtons[i] === element) return i;
+        }
+        return -1;
+    }
 
     // ── wiring ──────────────────────────────────────────────────────────────
 
@@ -106,6 +170,10 @@
         // Only once there is definitely an image to read. Everything else — text, an empty
         // clipboard, a file that is not an image — is left to the browser to handle.
         e.preventDefault();
+
+        // Whichever tab was showing, the photo one is where the work is about to appear.
+        // Without this the paste starts a read whose progress bar is on a hidden panel.
+        selectTab('photo');
         start(file);
     });
 
@@ -324,6 +392,11 @@
         rawText.value = rawText.value.trim() ? rawText.value.replace(/\s+$/, '') + '\n' + cleaned : cleaned;
 
         say('Read the photo. Checking it for numbers…');
+
+        // Back to the text that was just read. This is the hand-off the tabs exist to
+        // make obvious: the photo tab is a way of filling the paste box, not a second
+        // place the roster lives, so it returns you to the text you can now correct.
+        selectTab('paste');
 
         // Straight into the existing Import handler, so the numbers the parser found show
         // up without a second click. This is a real form submit — the same one the Import
