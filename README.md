@@ -364,11 +364,13 @@ request, in Release, with `-warnaserror`.
 | `src/Smser.ServiceDefaults` | OpenTelemetry, health checks, `/alive`, `/version`, response security headers. |
 | `src/Smser.Tests` | MSTest on Microsoft.Testing.Platform. |
 | `src/Smser.Web/wwwroot/lib/tesseract` | Vendored OCR engine. See [its README](src/Smser.Web/wwwroot/lib/tesseract/README.md) for versions and why it is committed. |
+| `src/Smser.Web/wwwroot/lib/bitter` | Vendored display face. Self-hosted for the same reason — see [its README](src/Smser.Web/wwwroot/lib/bitter/README.md). |
 | `samples/` | Sample rosters, each checked against an expected result on every build. |
 | `scripts/` | Operator scripts. `list-visits.ps1` reads the production visit log. |
 
 **Stack:** .NET 10 · ASP.NET Core Razor Pages · .NET Aspire · Azure Table Storage ·
-QRCoder · Tesseract (WebAssembly, in-browser) · MSTest · GitHub Actions.
+QRCoder · Tesseract (WebAssembly, in-browser) · Bitter (self-hosted) · MSTest ·
+GitHub Actions.
 
 ## 🔒 Privacy and security
 

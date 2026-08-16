@@ -110,7 +110,7 @@
                 <input type="file" accept="image/*" capture="environment" hidden data-photo-capture aria-hidden="true" tabindex="-1" />
             </div>
 
-            <div class="field">
+            <div class="field field-tight">
                 <label asp-for="Input.RawText">Roster import</label>
                 <textarea asp-for="Input.RawText" rows="6"
                           placeholder="Paste anything here — names, numbers, whatever your phone copied."></textarea>
@@ -121,21 +121,30 @@
                 <span asp-validation-for="Input.RawText" class="validation-message"></span>
             </div>
 
-            <div class="actions">
+            @*
+                The import result sits on the same row as the button that produces it,
+                rather than in a block notice below. The message is the server's own count
+                — the mock shows a longer sentence naming what was collapsed and dropped,
+                but NewModel has no such figures and inventing them would be a lie about
+                the parse.
+            *@
+            <div class="actions actions-import">
                 @* Route values named explicitly rather than left to the ambient ones, so
                    the formaction stays correct on /new/{id} as well as on /new. *@
                 <button type="submit" asp-page="/New" asp-page-handler="Import" asp-route-id="@Model.Id"
-                        data-photo-import class="button button-secondary">Import</button>
-            </div>
+                        data-photo-import class="button button-outline">Import</button>
 
-            @if (Model.ImportMessage is not null)
-            {
-                <p class="notice">@Model.ImportMessage</p>
-            }
+                @if (Model.ImportMessage is not null)
+                {
+                    <p class="import-note">@Model.ImportMessage</p>
+                }
+            </div>
 
             <div class="field">
                 <label asp-for="Input.Numbers">Phone numbers</label>
-                <textarea asp-for="Input.Numbers" rows="10" placeholder="(219) 555-0113"></textarea>
+                @* Mono, so the numbers line up in a column and a wrong one is easy to
+                   spot. The roster import box above stays in the UI font — prose, not data. *@
+                <textarea asp-for="Input.Numbers" rows="10" class="numbers" placeholder="(219) 555-0113"></textarea>
                 <p class="hint">
                     One per line. Edit freely — anything you type is re-checked when you generate.
                     <br />
@@ -155,22 +164,37 @@
         {
             <h1>Your QR code</h1>
 
-            @if (Model.QrDataUri is not null)
-            {
-                <img class="qr" src="@Model.QrDataUri" alt="QR code that opens a group message to this roster"
-                     width="640" height="640" />
-            }
-            else if (Model.QrTooLarge)
-            {
-                <p class="notice">
-                    This list is too long to fit in a QR code — @Model.Numbers.Count numbers.
-                    The mobile link below still works.
-                </p>
-            }
+            @*
+                The QR is presented as a tear-off card: the roster's name and size on the
+                head, the symbol on its white plate, and the two actions below a dashed
+                rule that runs the full width of the card like a perforation.
+            *@
+            <div class="qr-card">
+                <div class="qr-card-head">
+                    <span class="qr-card-name">@Model.Input.GroupName</span>
+                    <span class="qr-card-count">
+                        @Model.Numbers.Count number@(Model.Numbers.Count == 1 ? "" : "s")
+                    </span>
+                </div>
 
-            <div class="actions actions-center">
-                <a class="button" href="@Model.SmsUrl">Mobile link</a>
-                <button type="button" class="button button-secondary" data-copy="@Model.ShareUrl">Copy share link</button>
+                @if (Model.QrDataUri is not null)
+                {
+                    <img class="qr" src="@Model.QrDataUri" alt="QR code that opens a group message to this roster"
+                         width="640" height="640" />
+                }
+                else if (Model.QrTooLarge)
+                {
+                    @* The one place the block notice survives. *@
+                    <p class="notice">
+                        This list is too long to fit in a QR code — @Model.Numbers.Count numbers.
+                        The mobile link below still works.
+                    </p>
+                }
+
+                <div class="qr-card-actions">
+                    <a class="button button-accent" href="@Model.SmsUrl">Mobile link</a>
+                    <button type="button" class="button button-secondary" data-copy="@Model.ShareUrl">Copy share link</button>
+                </div>
             </div>
 
             <p class="hint hint-center" data-copy-status role="status">
