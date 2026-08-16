@@ -94,6 +94,56 @@ public class PhotoImportWiringTests
     }
 
     [TestMethod]
+    public void The_paste_button_is_hidden_until_script_reveals_it()
+    {
+        // Same rule again, and it bites harder here: a browser that cannot read the
+        // clipboard gets a button that names a thing it cannot do. .photo-actions has a
+        // CSS rule to make this attribute actually take effect on a .button — see the
+        // comment there — so shipping it visible would defeat both halves at once.
+        Assert.IsTrue(
+            Regex.IsMatch(_page, @"data-photo-paste hidden"),
+            "the paste button must render with the hidden attribute");
+    }
+
+    [TestMethod]
+    public void The_paste_button_does_not_submit_the_form()
+    {
+        // Inside a form a bare <button> submits it, which here would post the roster
+        // half-finished instead of reading the clipboard. The other photo controls carry
+        // type="button" for the same reason.
+        var button = Regex.Match(_page, @"<button[^>]*data-photo-paste[^>]*>").Value;
+
+        Assert.AreNotEqual(string.Empty, button, "the paste button is missing");
+        StringAssert.Contains(button, @"type=""button""");
+    }
+
+    [TestMethod]
+    public async Task The_paste_button_is_wired_to_a_clipboard_read()
+    {
+        // The button and the read are two halves of one feature and only one is visible.
+        // This is also the only paste path a phone has: the paste *event* below needs a
+        // focused editable element to fire into, and this panel has none.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "navigator.clipboard.read()",
+            "the paste button is revealed but nothing reads the clipboard");
+    }
+
+    [TestMethod]
+    public async Task Reading_the_clipboard_is_not_deferred_behind_an_await()
+    {
+        // Reading the clipboard is something a user gesture permits, not something the page
+        // may do whenever it likes. Both Safari and Chrome have dropped that permission by
+        // the time an awaited promise resolves, so moving the call off the top of the click
+        // handler breaks the feature on every device it was added for — and breaks it as a
+        // silently rejected promise, which looks exactly like a denied permission.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "reading = navigator.clipboard.read();",
+            "the clipboard read must stay a direct call in the click handler");
+    }
+
+    [TestMethod]
     public async Task The_script_still_listens_for_a_pasted_image()
     {
         // The hint above and this listener are two halves of one feature, and only one of
