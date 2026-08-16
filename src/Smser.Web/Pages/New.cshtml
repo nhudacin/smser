@@ -165,9 +165,20 @@
             *@
             <div class="actions actions-import">
                 @* Route values named explicitly rather than left to the ambient ones, so
-                   the formaction stays correct on /new/{id} as well as on /new. *@
+                   the formaction stays correct on /new/{id} as well as on /new.
+
+                   formnovalidate, and it is load-bearing. The generate gate's checkbox is
+                   `required`, and a required field blocks *every* submit button in the
+                   form — so without this, Import silently does nothing until the gate is
+                   ticked, and photo-ocr.js's importButton.click() is swallowed the same
+                   way: the read text lands in the box and the numbers never appear.
+
+                   Right on its own terms as well as necessary. Import parses text into the
+                   numbers box and saves nothing; the gate is a claim about the finished
+                   list, which is not a thing anyone can honestly make before they have
+                   seen what the import found. Only Generate has to wait for it. *@
                 <button type="submit" asp-page="/New" asp-page-handler="Import" asp-route-id="@Model.Id"
-                        data-photo-import class="button button-outline">Import</button>
+                        formnovalidate data-photo-import class="button button-outline">Import</button>
 
                 @if (Model.ImportMessage is not null)
                 {

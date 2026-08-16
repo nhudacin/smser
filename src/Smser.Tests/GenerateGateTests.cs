@@ -42,6 +42,54 @@ public class GenerateGateTests
     }
 
     /// <summary>
+    /// The gate must not take the Import button down with it.
+    ///
+    /// A `required` field blocks every submit button in its form, not just the one the gate
+    /// is about. When the gate first shipped, that meant Import did nothing at all until
+    /// the box was ticked — and silently, because a blocked submit is not an error, it is
+    /// simply a click that goes nowhere. The photo importer was hit hardest: it reads the
+    /// roster, drops the text in the box, calls importButton.click(), and the click was
+    /// swallowed. The text arrived and the numbers never did.
+    ///
+    /// Import is also the wrong place to ask. It parses text into the numbers box and saves
+    /// nothing; the gate is a claim about the finished list, which nobody can honestly make
+    /// before seeing what the import found.
+    /// </summary>
+    [TestMethod]
+    public async Task Import_is_not_blocked_by_the_gate()
+    {
+        var page = await _app.GetPageAsync("/new");
+
+        var import = Regex.Match(page, @"<button[^>]*handler=Import[^>]*>").Value;
+
+        Assert.AreNotEqual(string.Empty, import, "the Import button is not on the page");
+        StringAssert.Contains(import, "formnovalidate",
+            "the gate's required checkbox blocks every submit in the form, so without " +
+            "formnovalidate the Import button — and the photo importer that clicks it — " +
+            "quietly stops working until the box is ticked");
+    }
+
+    /// <summary>
+    /// The other half of the same guarantee, on the server: Import saves nothing, so it has
+    /// no reason to consult the gate and must not start refusing posts that omit it.
+    /// </summary>
+    [TestMethod]
+    public async Task Import_still_parses_with_the_box_unticked()
+    {
+        var page = await _app.GetPageAsync("/new");
+
+        var result = await _app.PostFormAsync("/new?handler=Import", new()
+        {
+            ["__RequestVerificationToken"] = Token(page),
+            ["Input.GroupName"] = "soccer team 2023",
+            ["Input.RawText"] = "Chris Bohling-2197423219, Nick Hudacin-2196133108"
+        });
+
+        StringAssert.Contains(result, "Found 2 numbers",
+            "Import should parse without waiting on a confirmation about the final list");
+    }
+
+    /// <summary>
     /// The regression that matters: a post that leaves the field out entirely. That is what
     /// a script does, and it is also what a browser sends for an unticked checkbox.
     /// </summary>
