@@ -51,7 +51,7 @@ the whole roster already filled in.
 | **QR code or link** | Scan the code, or tap the mobile link. Both open a group message with everyone in the To: field. |
 | **Shareable, editable** | Every list gets its own short URL. Come back next season, fix a number, regenerate — the link stays the same. |
 | **Works without JavaScript** | Import and Generate are real form posts. The only script on the page is the copy-link button. |
-| **Light and dark** | Theme-aware, and sized for the phone you are actually holding at the game. |
+| **Light and dark** | Light by default for everyone; dark is a switch in the header that remembers your choice. Sized for the phone you are actually holding at the game. |
 | **Locked down** | Strict CSP with no `unsafe-inline`, layered bot protection, per-caller rate limits, security headers, and no sign-in to leak. |
 
 ## 📸 Screenshots
