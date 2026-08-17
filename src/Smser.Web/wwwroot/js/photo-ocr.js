@@ -30,6 +30,8 @@
     var captureInput = root.querySelector('[data-photo-capture]');
     var pasteHint = root.querySelector('[data-photo-paste-hint]');
     var pasteButton = root.querySelector('[data-photo-paste]');
+    var pasteFallback = root.querySelector('[data-photo-paste-fallback]');
+    var pasteTarget = root.querySelector('[data-photo-paste-target]');
     var rawText = document.getElementById('Input_RawText');
     var form = document.querySelector('form[method="post"]');
 
@@ -251,6 +253,58 @@
         pasteButton.addEventListener('click', readClipboard);
     }
 
+    // Shown only after the button has failed. Focus goes with it: on iOS the Paste callout
+    // only appears on an element that already has the caret, so revealing this without
+    // focusing it would be an instruction nobody could follow.
+    function offerPasteTarget() {
+        if (!pasteFallback) return;
+
+        pasteFallback.hidden = false;
+        if (pasteTarget) pasteTarget.focus();
+
+        note('paste fallback', 'offered');
+    }
+
+    if (pasteTarget) {
+        pasteTarget.addEventListener('paste', function (e) {
+            var data = e.clipboardData;
+            if (!data) return;
+
+            // Nothing is ever allowed to land in the box — it is a target, not a field —
+            // and the document listener must not get a second go at the same event.
+            e.preventDefault();
+            e.stopPropagation();
+
+            var file = imageFrom(data);
+            note('paste target', file ? 'image, ' + file.type + ', ' + file.size + ' bytes'
+                : 'no image on the event');
+
+            if (file) {
+                start(file);
+                return;
+            }
+
+            // Text pasted here belongs in the box below that exists for it. Refusing it on
+            // a technicality would be worse than putting it where it was going anyway.
+            var text = data.getData ? data.getData('text') : '';
+
+            if (text && text.trim()) {
+                rawText.value = rawText.value.trim()
+                    ? rawText.value.replace(/\s+$/, '') + '\n' + text
+                    : text;
+                selectTab('paste');
+                return;
+            }
+
+            showBusy('');
+            fail('That paste had no image in it. Choose a photo instead.');
+        });
+
+        // Whatever gets past the handler above leaves nothing behind. A stray character
+        // sitting in something that looks like a drop zone reads as a bug.
+        pasteTarget.addEventListener('input', function () { pasteTarget.textContent = ''; });
+    }
+
     function readClipboard() {
         if (busyNow) return;
 
@@ -276,8 +330,8 @@
         }).then(function (file) {
             if (!file) {
                 showBusy('');
-                fail('Nothing on the clipboard looked like an image. Copy a photo first, ' +
-                    'or use Take a photo.');
+                fail('Your browser would not give up the image on the clipboard.');
+                offerPasteTarget();
                 return;
             }
 
@@ -290,10 +344,11 @@
 
             // Every failure here is the same failure from where the person is standing:
             // the browser would not hand the clipboard over. Whether that was a denied
-            // permission, a dismissed prompt or an empty clipboard, naming it helps nobody
-            // and NotAllowedError helps least of all.
-            fail('Could not read the clipboard. Some browsers ask permission first — ' +
-                'otherwise use Take a photo or Choose a photo.');
+            // permission, a dismissed prompt or an item describing itself as empty, naming
+            // it helps nobody and NotAllowedError helps least of all. What helps is the
+            // other way in, which is what the fallback below is.
+            fail('Could not read the clipboard.');
+            offerPasteTarget();
         });
     }
 
@@ -310,7 +365,39 @@
             }
         }
 
+        // Nothing advertised. Safari on iOS hands back a ClipboardItem with an empty types
+        // list for a photo copied out of Photos — one item, describing nothing — so taking
+        // the list at its word means never finding an image that is demonstrably there.
+        //
+        // So ask anyway. getType rejects for a type the item does not hold, which makes
+        // this a slow no-op on a clipboard that really has no image and the whole feature
+        // on a clipboard that does.
+        for (i = 0; i < items.length; i++) {
+            if ((items[i].types || []).length === 0 && items[i].getType) {
+                return probeForImage(items[i], 0);
+            }
+        }
+
         return null;
+    }
+
+    // The types worth guessing at, commonest first. HEIC is on the list because it is what
+    // an iPhone camera writes, even though nothing here could decode one — better to find
+    // it and say so than to report an empty clipboard.
+    var PROBE_TYPES = ['image/png', 'image/jpeg', 'image/heic', 'image/heif', 'image/tiff', 'image/gif', 'image/webp'];
+
+    function probeForImage(item, index) {
+        if (index >= PROBE_TYPES.length) {
+            note('clipboard probe', 'no image under any known type');
+            return null;
+        }
+
+        return item.getType(PROBE_TYPES[index]).then(function (blob) {
+            note('clipboard probe', PROBE_TYPES[index] + ' answered with ' + blob.size + ' bytes');
+            return blob;
+        }, function () {
+            return probeForImage(item, index + 1);
+        });
     }
 
     // Two ways in, because browsers do not agree on which they fill. `files` is the direct

@@ -144,6 +144,41 @@ public class PhotoImportWiringTests
     }
 
     [TestMethod]
+    public void The_paste_fallback_ships_hidden()
+    {
+        // It is the answer to a failure that has not happened yet. Shown up front it would
+        // be a second paste control sitting beside the button that usually works.
+        Assert.IsTrue(
+            Regex.IsMatch(_page, @"data-photo-paste-fallback hidden"),
+            "the paste fallback must render with the hidden attribute");
+    }
+
+    [TestMethod]
+    public void The_paste_fallback_is_something_a_paste_can_land_in()
+    {
+        // The whole point of it. A paste event needs an editable element to fire into, and
+        // on iOS that is the only way to get an image off the clipboard at all — Safari's
+        // clipboard.read() hands back an item that describes itself as holding nothing.
+        // Without contenteditable this is a div, and a div cannot be pasted into.
+        var target = Regex.Match(_page, @"<div[^>]*data-photo-paste-target[^>]*>").Value;
+
+        Assert.AreNotEqual(string.Empty, target, "the paste target is missing");
+        StringAssert.Contains(target, "contenteditable=\"true\"");
+    }
+
+    [TestMethod]
+    public async Task An_unadvertised_clipboard_item_is_still_asked_for_an_image()
+    {
+        // Safari on iOS returns one ClipboardItem with an empty types list for a photo
+        // copied out of Photos. Trusting that list means never finding an image that is
+        // demonstrably there, so the types are probed rather than read.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "probeForImage",
+            "an item that advertises no types is taken at its word, which loses the photo");
+    }
+
+    [TestMethod]
     public void The_diagnostics_panel_ships_hidden()
     {
         // It is a debugging aid, not part of the app. Shipping it visible would put a wall

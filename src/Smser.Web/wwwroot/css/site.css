@@ -734,6 +734,26 @@ code {
    ending a form, and at the full 14px/30px they dominate the control they belong to. */
 .photo-actions .button { padding: 11px 22px; font-size: .95rem; }
 
+/* The paste fallback, revealed only once the clipboard button has already failed. Same
+   :not([hidden]) idiom as .tabs and .photo-busy, for the same reason. */
+.photo-paste:not([hidden]) { display: block; margin-top: 14px; }
+
+/* Deliberately a drop-zone shape rather than a text field: what goes in it is a photo, and
+   it is dashed and empty so it reads as somewhere to put something rather than somewhere
+   to type. It has to be tall enough to be an easy target for a long press on a phone,
+   which is the gesture the whole thing exists to receive. */
+.photo-paste-target {
+    min-height: 72px;
+    margin-top: 8px;
+    padding: 14px;
+    color: var(--ink);
+    background: var(--bg-raised);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+}
+
+.photo-paste-target:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* Diagnostics, off unless ?debug=1 asked for them. Same :not([hidden]) idiom as .tabs and
    .photo-busy, and needed for the same reason. */
 .photo-debug:not([hidden]) { display: block; margin-top: 18px; }
