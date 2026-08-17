@@ -1,7 +1,10 @@
 @page "{id?}"
 @model NewModel
 @{
-    ViewData["Title"] = Model.HasResult ? $"{Model.Input.GroupName} — SMSer" : "New SMS group — SMSer";
+    @* The name is optional, so a saved list may not have one to put in the tab. *@
+    ViewData["Title"] = Model.HasResult && !string.IsNullOrWhiteSpace(Model.Input.GroupName)
+        ? $"{Model.Input.GroupName} — SMSer"
+        : Model.HasResult ? "Your list — SMSer" : "New SMS group — SMSer";
 }
 
 <div class="split">
@@ -42,9 +45,12 @@
             <input type="hidden" name="@FormGuard.TimestampField" value="@Model.IssuedTimestamp" />
 
             <div class="field">
-                <label asp-for="Input.GroupName">SMS group name</label>
+                <label asp-for="Input.GroupName">
+                    SMS group name
+                    <span class="label-optional">optional</span>
+                </label>
                 <input asp-for="Input.GroupName" placeholder="soccer team 2023" autocomplete="off" />
-                <p class="hint">This helps you tell multiple teams and rosters apart.</p>
+                <p class="hint">This helps you tell multiple teams and rosters apart. Skip it if you like.</p>
                 <span asp-validation-for="Input.GroupName" class="validation-message"></span>
             </div>
 
@@ -309,55 +315,145 @@
     <section class="panel">
         @if (Model.HasResult)
         {
-            <h1>Your QR code</h1>
-
             @*
-                The QR is presented as a tear-off card: the roster's name and size on the
-                head, the symbol on its white plate, and the two actions below a dashed
-                rule that runs the full width of the card like a perforation.
+                One source order, reordered by CSS. Source order is coarse-first on purpose:
+                if the stylesheet never arrives, a phone still gets the tap it came for at
+                the top, which is the failure that matters. On a fine pointer the QR moves
+                back above the tap with `order`.
+
+                On a phone the QR is the one thing here you cannot use — you cannot scan
+                your own screen — so it folds into a <details> and the action that does work
+                leads. On a desktop it is the other way round.
             *@
-            <div class="qr-card">
-                <div class="qr-card-head">
-                    <span class="qr-card-name">@Model.Input.GroupName</span>
-                    <span class="qr-card-count">
-                        @Model.Numbers.Count number@(Model.Numbers.Count == 1 ? "" : "s")
-                    </span>
+            var plural = Model.Numbers.Count == 1 ? "" : "s";
+            var named = !string.IsNullOrWhiteSpace(Model.Input.GroupName);
+
+            <div class="result">
+                <div class="result-head">
+                    <h1>@(named ? $"{Model.Input.GroupName} is ready" : "Your list is ready")</h1>
+                    <p class="result-count">@Model.Numbers.Count number@(plural)</p>
                 </div>
 
-                @if (Model.QrDataUri is not null)
-                {
-                    <img class="qr" src="@Model.QrDataUri" alt="QR code that opens a group message to this roster"
-                         width="640" height="640" />
-                }
-                else if (Model.QrTooLarge)
-                {
-                    @* The one place the block notice survives. *@
-                    <p class="notice">
-                        This list is too long to fit in a QR code — @Model.Numbers.Count numbers.
-                        The mobile link below still works.
-                    </p>
-                }
+                <div class="result-open">
+                    @* Fine pointer only: the card above is the subject, this labels it. *@
+                    <p class="result-open-lead">Point your phone's camera at this</p>
 
-                <div class="qr-card-actions">
-                    <a class="button button-accent" href="@Model.SmsUrl">Mobile link</a>
-                    <button type="button" class="button button-secondary" data-copy="@Model.ShareUrl">Copy share link</button>
-                </div>
-            </div>
-
-            <p class="hint hint-center" data-copy-status role="status">
-                On a phone, the mobile link opens a message with all @Model.Numbers.Count numbers in it.
-                Copy the share link to send this list to another device, or to keep it for later.
-            </p>
-
-            <details class="roster">
-                <summary>@Model.Numbers.Count number@(Model.Numbers.Count == 1 ? "" : "s") in this list</summary>
-                <ol>
-                    @foreach (var number in Model.Numbers)
+                    @if (Model.QrTooLarge)
                     {
-                        <li>@PhoneNumberParser.Format(number)</li>
+                        @*
+                            Moved out of the card deliberately. With no QR to show there is
+                            no reveal to put this behind, and on a phone the tap below is
+                            then the only route left — so the reason it is the only route
+                            has to be visible rather than folded away.
+                        *@
+                        <p class="notice">
+                            This list is too long to fit in a QR code — @Model.Numbers.Count numbers.
+                            Opening Messages still works.
+                        </p>
                     }
-                </ol>
-            </details>
+
+                    @*
+                        The anchor is last in source and hoisted by `order` on a coarse
+                        pointer. That is what lets one element be a full-width button on a
+                        phone and the inline link at the end of the sentence on a desktop,
+                        without a second copy of the href to drift out of step.
+                    *@
+                    <p class="result-open-note">
+                        <span class="result-open-fine">
+                            Messages opens with all @Model.Numbers.Count number@(plural) in it.
+                            Already on your phone?
+                        </span>
+                        <span class="result-open-coarse">
+                            Opens a new message with all @Model.Numbers.Count number@(plural) already
+                            in the To: field. Nothing sends until you hit send.
+                        </span>
+                        <a class="button-open" href="@Model.SmsUrl">
+                            <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.6 9.6 0 0 1-2.8-.4L4 21l1.6-4.2A8.2 8.2 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"></path>
+                            </svg>
+                            <span class="button-open-coarse">Open Messages</span>
+                            <span class="button-open-fine">Use the mobile link</span>
+                        </a>
+                    </p>
+                </div>
+
+                @if (!Model.QrTooLarge)
+                {
+                    @*
+                        Deliberately no `open` attribute. Adding one would leave the reveal
+                        open on a phone, which is the whole thing this change undoes. The
+                        fine pointer forces it open from CSS instead, and print does the
+                        same — and with no CSS at all it is still a <details> anyone can
+                        expand, so the code is never unreachable.
+                    *@
+                    <details class="qr-reveal">
+                        <summary>
+                            <svg class="qr-reveal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                                <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                                <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                                <path d="M14 17.5h3.5M17.5 14v7M21 14v.01M21 21v.01"></path>
+                            </svg>
+                            <span class="qr-reveal-label">Show the QR code</span>
+                            <span class="qr-reveal-note">for another phone</span>
+                        </summary>
+
+                        <div class="qr-reveal-body">
+                            @*
+                                The tear-off card, unchanged inside. On a coarse pointer it
+                                sheds its own chrome — the reveal already provides a box —
+                                and its head is hidden, because the name is the page
+                                heading two elements up.
+                            *@
+                            <div class="qr-card">
+                                <div class="qr-card-head">
+                                    @if (named)
+                                    {
+                                        <span class="qr-card-name">@Model.Input.GroupName</span>
+                                    }
+                                    <span class="qr-card-count">
+                                        @Model.Numbers.Count number@(plural)
+                                    </span>
+                                </div>
+
+                                @if (Model.QrDataUri is not null)
+                                {
+                                    <img class="qr" src="@Model.QrDataUri" alt="QR code that opens a group message to this roster"
+                                         width="640" height="640" />
+                                }
+                            </div>
+
+                            <p class="hint qr-reveal-hint">
+                                Hold this up to someone else's camera and their phone opens the same message.
+                            </p>
+                        </div>
+                    </details>
+                }
+
+                @*
+                    A different job from the two above — keep the URL, come back and edit
+                    the list — so it sits below a rule rather than in a row of send actions.
+                *@
+                <div class="result-keep" data-result-keep>
+                    <p class="hint">Coming back to change this list later?</p>
+                    <button type="button" class="button button-secondary" data-copy="@Model.ShareUrl">
+                        Save the link to this list
+                    </button>
+                    <span class="result-keep-status" data-copy-status role="status"></span>
+                </div>
+
+                <details class="roster">
+                    <summary>@Model.Numbers.Count number@(plural) in this list</summary>
+                    <ol>
+                        @foreach (var number in Model.Numbers)
+                        {
+                            <li>@PhoneNumberParser.Format(number)</li>
+                        }
+                    </ol>
+                </details>
+            </div>
         }
         else
         {

@@ -191,7 +191,10 @@ public sealed class SmsGroupStore
 
     private static void Validate(string groupName, string rawText, IReadOnlyList<string> numbers)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
+        // Null is still a bug, but blank is not. The name is a label for whoever made the
+        // list — nothing here reads it, and the roster is perfectly usable without one — so
+        // an empty name stores as an empty name rather than refusing the write.
+        ArgumentNullException.ThrowIfNull(groupName);
 
         if (groupName.Length > RosterLimits.MaxGroupNameLength)
             throw new ArgumentException($"Roster name is longer than {RosterLimits.MaxGroupNameLength} characters.", nameof(groupName));

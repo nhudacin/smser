@@ -615,17 +615,200 @@ code {
     background: #ffffff;
 }
 
-/* The negative margin is what runs the dashed rule the full width of the card, so it
-   reads as a perforation rather than an underline. */
-.qr-card-actions {
-    display: flex;
-    gap: 12px;
-    border-top: 1.5px dashed var(--border);
-    margin: 24px -28px 0;
-    padding: 24px 28px 0;
+/* ── the result panel ────────────────────────────────────────────────────── */
+
+/* One source order, two layouts.
+ *
+ * On a phone the QR is the one element here nobody can use — you cannot scan your own
+ * screen — while it is also the largest thing on the panel. So the tap leads and the code
+ * folds into a <details>. On a desktop it is the other way round: the code is the point
+ * and the tap is an aside under the perforation.
+ *
+ * Source order is coarse-first deliberately. If the stylesheet never arrives, a phone
+ * still gets the working action at the top, which is the failure worth optimising for;
+ * the fine pointer puts the card back on top with `order`. */
+.result { display: flex; flex-direction: column; }
+
+.result-head h1 { margin: 0 0 6px; }
+.result-count { margin: 0 0 20px; color: var(--ink-muted); font-size: .9rem; }
+
+.label-optional {
+    margin-left: 6px;
+    color: var(--ink-muted);
+    font-weight: 400;
+    font-size: .8rem;
 }
 
-.qr-card-actions .button { flex: 1; padding: 14px 20px; text-align: center; }
+.result-open-lead { margin: 0 0 4px; font-weight: 600; font-size: .95rem; }
+.result-open-note { margin: 0; color: var(--ink-muted); font-size: .88rem; line-height: 1.55; }
+
+.button-icon { width: 20px; height: 20px; flex: none; }
+
+.result-keep {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+}
+
+.result-keep .hint { margin: 0 0 8px; font-size: .85rem; }
+.result-keep-status { display: block; margin-top: 8px; color: var(--ink-muted); font-size: .85rem; }
+
+/* ── coarse pointer: the tap leads, the code folds away ──────────────────── */
+
+@media (pointer: coarse) {
+    .result-open-lead,
+    .result-open-fine,
+    .button-open-fine { display: none; }
+
+    /* A flex column so the anchor — which is last in source, because that is where the
+       desktop sentence needs it — can be hoisted above the text it explains. One anchor,
+       one href, two very different shapes. */
+    .result-open-note {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        font-size: .86rem;
+    }
+
+    .result-open-coarse { order: 2; margin-top: 12px; }
+
+    .button-open {
+        order: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 18px 20px;
+        background: var(--accent-strong);
+        color: var(--accent-ink);
+        font-weight: 700;
+        font-size: 1.05rem;
+        border-radius: var(--radius-pill);
+        text-decoration: none;
+    }
+
+    .button-open:hover { background: var(--accent-strong-hover); color: var(--accent-ink); }
+
+    /* The perforation moves out of the card and up here, above the reveal. */
+    .qr-reveal {
+        border-top: 1.5px dashed var(--border);
+        margin-top: 22px;
+        padding-top: 20px;
+    }
+
+    .qr-reveal summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        /* ~53px on one line, comfortably over the 44px touch floor. */
+        padding: 15px 16px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: .92rem;
+        background: var(--bg-raised);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        list-style: none;
+    }
+
+    .qr-reveal summary::-webkit-details-marker { display: none; }
+
+    .qr-reveal summary:focus-visible {
+        outline: 2px solid var(--accent-strong);
+        outline-offset: 2px;
+    }
+
+    .qr-reveal-icon { width: 18px; height: 18px; flex: none; stroke: var(--accent); }
+    .qr-reveal-label { flex: 1; }
+    .qr-reveal-note { color: var(--ink-muted); font-size: .8rem; font-weight: 400; }
+
+    /* Open, the summary and the body have to read as one box rather than two stacked. */
+    .qr-reveal[open] summary { border-radius: 12px 12px 0 0; border-bottom: none; }
+
+    .qr-reveal-body {
+        padding: 0 16px 16px;
+        background: var(--bg-raised);
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 12px 12px;
+    }
+
+    /* Inside the reveal the card gives up its own chrome — the reveal is the box now —
+       and its head goes, because the name is already the panel's heading. */
+    .qr-reveal-body .qr-card {
+        background: none;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    .qr-reveal-body .qr-card-head { display: none; }
+    .qr-reveal-hint { margin: 12px 0 0; font-size: .82rem; }
+
+    .result-keep .button { width: 100%; padding: 13px 20px; }
+}
+
+/* ── fine pointer: the code leads, exactly as it shipped ─────────────────── */
+
+@media (pointer: fine) {
+    .result-head { order: 0; }
+    .qr-reveal { order: 1; }
+    .result-open { order: 2; }
+    .result-keep { order: 3; }
+    .result .roster { order: 4; }
+
+    /* Hiding the summary is what forces the reveal open: a <details> with no summary
+       cannot be collapsed, which is the behaviour wanted here. */
+    .qr-reveal summary { display: none; }
+    .qr-reveal > .qr-reveal-body { display: block; }
+    .qr-reveal-hint { display: none; }
+
+    /* Both halves are needed, and `display` alone is not enough.
+     *
+     * Chromium wraps a <details>' contents in a ::details-content box which stays
+     * content-visibility:hidden while the element is closed. Unhiding the child then
+     * measures fine — the body reports its full 568px — while the <details> itself lays
+     * out at zero height, so the card renders on top of what follows it and the panel
+     * looks like the QR simply vanished. Only the pseudo-element gives the box back. */
+    .qr-reveal::details-content { content-visibility: visible; block-size: auto; }
+
+    .result-open-coarse,
+    .button-open-coarse,
+    .button-icon { display: none; }
+
+    /* The card and the aside beneath it are one piece of card stock with a perforation
+       across it, so the card gives up its bottom edge and the aside carries it. */
+    .qr-card {
+        padding-bottom: 24px;
+        border-bottom: none;
+        border-radius: var(--radius-card) var(--radius-card) 0 0;
+        box-shadow: none;
+    }
+
+    .result-open {
+        padding: 24px 28px 28px;
+        background: var(--bg-raised);
+        border: 1px solid var(--border);
+        border-top: 1.5px dashed var(--border);
+        border-radius: 0 0 var(--radius-card) var(--radius-card);
+        box-shadow: var(--shadow);
+    }
+
+    .button-open { color: var(--accent-strong); font-weight: 600; }
+    .button-open:hover { color: var(--accent-strong-hover); }
+
+    .result-keep { margin-top: 22px; padding-top: 20px; }
+    .result-keep .button { padding: 13px 24px; }
+}
+
+/* Printing has no pointer to go on, and a printed panel with the code hidden is a blank
+   sheet. Force it open regardless of the toggle's state. */
+@media print {
+    .qr-reveal summary { display: none; }
+    .qr-reveal > .qr-reveal-body { display: block; }
+    .qr-reveal::details-content { content-visibility: visible; block-size: auto; }
+}
 
 .placeholder {
     display: grid;

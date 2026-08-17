@@ -84,10 +84,19 @@ public class NewModel : PageModel
 
     public class InputModel
     {
-        [Required(ErrorMessage = "Give the list a name so you can tell it apart later.")]
+        /// <summary>
+        /// Optional, and nullable for the same reason <see cref="Numbers"/> is: a
+        /// non-nullable string picks up the implicit required-ness MVC infers from the
+        /// reference type, so simply dropping the [Required] here would swap one refusal
+        /// for another — and a worse-worded one ("The SMS group name field is required.").
+        ///
+        /// The name is a label for whoever made the list and nothing reads it but them.
+        /// Refusing to save a perfectly good roster over a blank field it does not need
+        /// was the wrong trade.
+        /// </summary>
         [StringLength(RosterLimits.MaxGroupNameLength, ErrorMessage = "Keep the name under {1} characters.")]
         [Display(Name = "SMS group name")]
-        public string GroupName { get; set; } = string.Empty;
+        public string? GroupName { get; set; }
 
         [StringLength(RosterLimits.MaxRawTextLength, ErrorMessage = "That is more than {1} characters — paste the roster in a couple of batches.")]
         [Display(Name = "Roster import")]
@@ -212,18 +221,22 @@ public class NewModel : PageModel
 
         var rawText = Input.RawText ?? string.Empty;
 
+        // Same coalesce as rawText above, and for the same reason: the field is optional, so
+        // an untouched box arrives as null and the store takes a string.
+        var groupName = Input.GroupName ?? string.Empty;
+
         if (Id is not null)
         {
             if (!ShortId.TryNormalise(Id, out var existing)) return NotFound();
 
-            await _store.UpdateAsync(existing, Input.GroupName, rawText, numbers, cancellationToken);
+            await _store.UpdateAsync(existing, groupName, rawText, numbers, cancellationToken);
             _logger.LogInformation("Updated roster {RosterId} with {NumberCount} numbers", existing, numbers.Count);
             RecordRosterEvent(VisitEvents.RosterUpdated, existing, numbers.Count);
 
             return RedirectToPage(new { id = existing });
         }
 
-        var saved = await _store.CreateAsync(Input.GroupName, rawText, numbers, cancellationToken);
+        var saved = await _store.CreateAsync(groupName, rawText, numbers, cancellationToken);
         _logger.LogInformation("Created roster {RosterId} with {NumberCount} numbers", saved.Id, numbers.Count);
         RecordRosterEvent(VisitEvents.RosterCreated, saved.Id, numbers.Count);
 
