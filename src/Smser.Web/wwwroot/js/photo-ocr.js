@@ -43,10 +43,25 @@
     // right fallback rather than a photo panel that nothing can open.
     if (!tabs || !pastePanel) return;
 
-    // Longest edge the image is scaled to before recognition. A modern phone photo is
-    // 3000-4000px, which costs several seconds of OCR for detail that tesseract cannot
-    // use. Below about 1200 the digits start to break up, so this leaves headroom.
+    // Longest edge the image is read at. A modern phone photo is 3000-4000px, which costs
+    // several seconds of OCR for detail tesseract cannot use, so big photos come down to
+    // this.
+    //
+    // Small ones now go *up* to it, which is the half that reads wrong at first glance.
+    // Tesseract wants text around 30px tall and struggles badly under about 10px, and an
+    // image pasted on iOS arrives around 800px on its longest edge — perfectly legible to
+    // the eye, but with roster text only a few pixels high. Enlarging it reads
+    // dramatically better even though interpolation adds no information whatsoever; the
+    // engine simply needs the strokes spread over enough pixels to resolve.
+    //
+    // Measured on the sideways 600×800 roster that sent us looking: the correct
+    // orientation scored 26 at native size and 52 enlarged. That gap is the whole feature.
     var MAX_EDGE = 2000;
+
+    // How far a small image may be enlarged. Upscaling buys real accuracy, but only up to
+    // a point — blowing a thumbnail up to MAX_EDGE just buys OCR time on a page that was
+    // never going to read.
+    var MAX_UPSCALE = 4;
 
     // How sure tesseract has to be before the page is taken to be the right way up. A good
     // read of a printed roster lands in the seventies or above; a sideways one comes back
@@ -55,10 +70,26 @@
     // that is a few seconds, where the other way round is a screen of gibberish.
     var UPRIGHT_ENOUGH = 60;
 
-    // Longest edge for the orientation probes. Which way up a page is is a far coarser
-    // question than what it says, and is settled well below the size needed to read it —
-    // so the probes run small and only the winner is read properly.
-    var PROBE_EDGE = 500;
+    // Longest edge for the orientation probes.
+    //
+    // This was 500, on the theory that which way up a page is is a far coarser question
+    // than what it says, and so is settled well below the size needed to read it. That
+    // theory is wrong, and measurably so. On the sideways 600×800 roster, confidence by
+    // orientation came out:
+    //
+    //     edge    0°   90°  180°  270° (the correct one)
+    //      500    22    29    41    34   → picked 180°
+    //      800    37    21    29    26   → picked 0°
+    //     1600    39    30    37    44   → picked 270°
+    //     2400    34    29    40    52   → picked 270°
+    //
+    // Below about 1600 the ranking is noise and lands on the wrong answer. Confidence
+    // only starts tracking orientation once the text is big enough for the engine to
+    // resolve at all — the same threshold MAX_EDGE is about, for the same reason.
+    //
+    // So the probes are no cheaper than a real read. That is the price of them being
+    // right, and it is only paid when the first read came back poor.
+    var PROBE_EDGE = 1600;
 
     var LIB = '/lib/tesseract/';
     var busyNow = false;
@@ -492,7 +523,7 @@
         // Reset, so a second photo does not inherit the last one's narration.
         phase = 'Reading the roster';
 
-        downscale(file).then(function (dataUrl) {
+        prepare(file).then(function (dataUrl) {
             showBusy(dataUrl);
             say('Loading the reader… this part happens once.');
             setProgress(0.06);
@@ -505,7 +536,9 @@
         });
     }
 
-    // Draws the photo into a canvas at a sane size and hands back a data: URL.
+    // Draws the photo into a canvas at a sane size and hands back a data: URL. Named for
+    // what it does rather than which direction it does it in: it was `downscale` until it
+    // learned to enlarge a small photo, which is now the commoner case of the two.
     //
     // Deliberately no URL.createObjectURL anywhere. The obvious way to get a File onto a
     // canvas is an object URL on an <img>, but that is a blob: URL and the policy says
@@ -517,7 +550,7 @@
     // the base64 round-trip a FileReader fallback pays. `imageOrientation: 'from-image'`
     // is not optional: a portrait photo off a phone carries its rotation in EXIF, and
     // ignoring it hands the OCR a sideways page, which reads as no text at all.
-    function downscale(file) {
+    function prepare(file) {
         note('file', file.type + ', ' + file.size + ' bytes');
 
         // The bytes are read for their header before the image is decoded, because what
@@ -608,13 +641,28 @@
         var swap = degrees === 90 || degrees === 270;
         var uprightWidth = swap ? height : width;
         var uprightHeight = swap ? width : height;
-        var scale = Math.min(1, maxEdge / Math.max(uprightWidth, uprightHeight));
+
+        // Deliberately allowed to exceed 1. This used to be min(1, …), which meant the
+        // function could only ever shrink — and that one clamp was enough to break the
+        // whole orientation search twice over. It held the probes at whatever a small
+        // photo already was, well under the size where confidence means anything; and it
+        // then held the winning re-read down there too, so the correct rotation came back
+        // scoring *lower* than the sideways first read and was thrown away by the guard
+        // in findUpright that exists to keep the search safe.
+        var scale = Math.min(MAX_UPSCALE, maxEdge / Math.max(uprightWidth, uprightHeight));
 
         var canvas = document.createElement('canvas');
         canvas.width = Math.round(uprightWidth * scale);
         canvas.height = Math.round(uprightHeight * scale);
 
         var context = canvas.getContext('2d');
+
+        // Enlarging is now the common case for a pasted photo, and the default smoothing
+        // is tuned for speed rather than for the interpolation quality that decides
+        // whether the strokes survive. Not every engine honours it; where it is missing
+        // the assignment is simply ignored.
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
 
         if (degrees === 90) {
             context.translate(canvas.width, 0);
