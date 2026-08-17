@@ -9,7 +9,7 @@ namespace Smser.Tests;
 /// Rate limiting is endpoint metadata and a Razor Page is one endpoint covering its GET
 /// and its POST, so the limit used to have to be loose enough for the loosest thing the
 /// page does. Splitting the budgets inside the policy is what lets the save be held to a
-/// couple a minute; these tests exist because that split is invisible from the outside
+/// few a minute; these tests exist because that split is invisible from the outside
 /// until it is wrong, and the way it goes wrong is that reading a roster starts spending
 /// the allowance for writing one.
 ///
@@ -31,13 +31,13 @@ public class RateLimitTests
     };
 
     [TestMethod]
-    public async Task The_third_save_in_a_minute_is_turned_away()
+    public async Task The_fifth_save_in_a_minute_is_turned_away()
     {
         using var app = new SmserApp();
         var token = Token(await app.GetPageAsync("/new"));
 
         var codes = new List<HttpStatusCode>();
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 6; i++)
         {
             using var response = await app.PostFormRawAsync("/new", Save(token));
             codes.Add(response.StatusCode);
@@ -48,11 +48,13 @@ public class RateLimitTests
             {
                 HttpStatusCode.OK,
                 HttpStatusCode.OK,
+                HttpStatusCode.OK,
+                HttpStatusCode.OK,
                 HttpStatusCode.TooManyRequests,
                 HttpStatusCode.TooManyRequests
             },
             codes,
-            $"saves should stop at two a minute; got {string.Join(", ", codes)}");
+            $"saves should stop at four a minute; got {string.Join(", ", codes)}");
     }
 
     [TestMethod]
@@ -64,7 +66,7 @@ public class RateLimitTests
         using var app = new SmserApp();
         var token = Token(await app.GetPageAsync("/new"));
 
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < 5; i++)
         {
             (await app.PostFormRawAsync("/new", Save(token))).Dispose();
         }
@@ -84,7 +86,7 @@ public class RateLimitTests
         using var app = new SmserApp();
         var token = Token(await app.GetPageAsync("/new"));
 
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < 5; i++)
         {
             (await app.PostFormRawAsync("/new", Save(token))).Dispose();
         }
@@ -108,7 +110,7 @@ public class RateLimitTests
         var token = Token(await app.GetPageAsync("/new"));
 
         HttpResponseMessage? rejected = null;
-        for (var i = 0; i < 4 && rejected is null; i++)
+        for (var i = 0; i < 6 && rejected is null; i++)
         {
             var response = await app.PostFormRawAsync("/new", Save(token));
             if (response.StatusCode == HttpStatusCode.TooManyRequests) rejected = response;

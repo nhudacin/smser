@@ -18,6 +18,11 @@
     <!-- Boots Smser.Web in-process for the page-wiring tests. The form/handler bugs those
          catch live in Razor markup, where no unit test can see them. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <!-- Runs the photo import's rotation maths for real. The wiring tests can only check
+         that the code is present, which is exactly how a clamp that made the orientation
+         search pick the wrong answer passed CI and shipped. Jint is pure managed, so it
+         needs no browser and runs on the Linux agent like everything else. -->
+    <PackageReference Include="Jint" Version="4.16.0" />
   </ItemGroup>
 
   <ItemGroup>
