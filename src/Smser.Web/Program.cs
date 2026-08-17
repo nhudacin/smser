@@ -61,7 +61,7 @@ builder.Services.AddRateLimiter(options =>
     // single endpoint covering its GET and its POST, so a single number here would have to
     // be loose enough for the loosest thing the page does — which is why this used to sit
     // at twenty for everything. Partitioning inside the policy is what lets the write be
-    // held to a couple a minute without throttling people reading a roster.
+    // held to a few a minute without throttling people reading a roster.
     //
     // Separate keys mean separate budgets: reading a roster never spends the allowance for
     // saving one, and vice versa.
@@ -73,7 +73,7 @@ builder.Services.AddRateLimiter(options =>
         {
             // Reads. Opening a roster, following a share link, reloading after a save.
             // Costs a storage read and nothing else.
-            return PerCaller($"read:{caller}", permitLimit: 30);
+            return PerCaller($"read:{caller}", permitLimit: 60);
         }
 
         // Import parses the pasted text and returns the same page. It touches no storage
@@ -81,13 +81,18 @@ builder.Services.AddRateLimiter(options =>
         // does real parsing work, so it is not free either. It also fires automatically
         // once per photo, which is why it is not held to the save limit: reading two pages
         // of a roster is two imports in quick succession by design.
-        if (IsImport(context)) return PerCaller($"import:{caller}", permitLimit: 10);
+        if (IsImport(context)) return PerCaller($"import:{caller}", permitLimit: 20);
 
         // The write. This is the one that mints an id, bills a transaction, and is worth
-        // anything at all to a bot. Two a minute is enough to save a roster and correct it
-        // once; a third correction inside the same minute waits, which is a fair trade for
-        // making bulk creation pointless.
-        return PerCaller($"save:{caller}", permitLimit: 2);
+        // anything at all to a bot.
+        //
+        // These were all half what they are now, and the save was the one that bit: two a
+        // minute assumed you save a roster and correct it once, which is not what editing
+        // a photographed roster actually looks like. The OCR gets names wrong, you fix a
+        // number, save, spot another, and the third correction inside a minute is refused
+        // — the app throttling the exact workflow it was built for. Doubling keeps bulk
+        // creation pointless while leaving room to iterate.
+        return PerCaller($"save:{caller}", permitLimit: 4);
     });
 
     // Throttling is invisible otherwise. UseVisitLogging sits behind the limiter
@@ -121,7 +126,7 @@ builder.Services.AddRateLimiter(options =>
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
         RateLimitPartition.GetFixedWindowLimiter(CallerKey(context), _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 120,
+            PermitLimit = 240,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));
