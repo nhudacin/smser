@@ -734,6 +734,25 @@ code {
    ending a form, and at the full 14px/30px they dominate the control they belong to. */
 .photo-actions .button { padding: 11px 22px; font-size: .95rem; }
 
+/* Diagnostics, off unless ?debug=1 asked for them. Same :not([hidden]) idiom as .tabs and
+   .photo-busy, and needed for the same reason. */
+.photo-debug:not([hidden]) { display: block; margin-top: 18px; }
+
+.photo-debug-log {
+    display: block;
+    width: 100%;
+    margin: 8px 0 10px;
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: .8rem;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    resize: vertical;
+}
+
 /* The same trap .tabs and .photo-busy document, sprung from the other side. There the
    display was being set on the thing that also carries [hidden]; here it is .button's own
    `display: inline-block`, which is an author rule and so beats the user agent's

@@ -168,6 +168,38 @@
                     <input type="file" accept="image/*" hidden data-photo-file aria-hidden="true" tabindex="-1" />
                     <input type="file" accept="image/*" capture="environment" hidden data-photo-capture aria-hidden="true" tabindex="-1" />
                 </div>
+
+                @*
+                    Diagnostics for the photo path, revealed only by /new?debug=1.
+
+                    This is the one part of the app that cannot be tested from here. It is a
+                    camera, an image decoder and a WebAssembly engine, and the three of them
+                    disagree from browser to browser — so when it misreads a roster on
+                    somebody's phone, the only way to find out why has been to guess, and
+                    every guess costs a round trip. This writes down what happened instead.
+
+                    Deliberately not a console log: the phone where this goes wrong is the
+                    phone with no console attached to it.
+
+                    Nothing here is sent anywhere. The photo never leaves the device — that
+                    is the whole reason the OCR runs locally — and neither does this, until
+                    somebody reads it and chooses to copy it.
+
+                    It sits outside the tab panels so that switching tabs does not take it
+                    away, and it is a readonly textarea rather than a <pre> because a phone
+                    can select the whole of one in a single tap.
+                *@
+                <div class="photo-debug" data-photo-debug hidden>
+                    <p class="hint">
+                        <strong>Diagnostics.</strong> This is what the reader saw. It stays on
+                        this device unless you copy it.
+                    </p>
+                    <textarea class="photo-debug-log" data-photo-debug-log rows="12" readonly
+                              aria-label="Photo import diagnostics"></textarea>
+                    <button type="button" class="button button-secondary" data-photo-debug-copy>
+                        Copy diagnostics
+                    </button>
+                </div>
             </div>
 
             @*
