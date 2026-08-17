@@ -144,6 +144,46 @@ public class PhotoImportWiringTests
     }
 
     [TestMethod]
+    public async Task A_page_that_reads_badly_is_tried_every_way_up()
+    {
+        // EXIF is the cheap answer and is tried first, but it only exists when the camera
+        // wrote a tag — a roster photographed sideways on a table has none, and then the
+        // pixels are the only evidence there is. Without this the read is gibberish and
+        // nothing anywhere reports a problem, because a confident misreading and a correct
+        // one look identical from the outside.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "findUpright",
+            "a low-confidence read is accepted as final, so a sideways page stays sideways");
+        StringAssert.Contains(script, "[0, 90, 180, 270]",
+            "the orientation search must consider every quarter turn");
+    }
+
+    [TestMethod]
+    public async Task Turning_the_page_cannot_make_the_read_worse()
+    {
+        // The probes are small and can be wrong. A rotated read is only allowed to replace
+        // the original by beating it, so the worst case of a bad guess is wasted seconds
+        // rather than a worse result than not having tried.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "second.confidence > first.confidence",
+            "a turned read must have to beat the one it replaces");
+    }
+
+    [TestMethod]
+    public async Task The_orientation_search_reuses_one_worker()
+    {
+        // createWorker re-initialises the WebAssembly core each time. The search can want
+        // five reads, and paying that initialisation five times would cost more than the
+        // reads it is there to make.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        Assert.AreEqual(1, Regex.Matches(script, @"Tesseract\.createWorker").Count,
+            "the engine should be started once per photo, not once per read");
+    }
+
+    [TestMethod]
     public void The_paste_fallback_ships_hidden()
     {
         // It is the answer to a failure that has not happened yet. Shown up front it would

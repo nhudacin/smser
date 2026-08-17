@@ -48,8 +48,24 @@
     // use. Below about 1200 the digits start to break up, so this leaves headroom.
     var MAX_EDGE = 2000;
 
+    // How sure tesseract has to be before the page is taken to be the right way up. A good
+    // read of a printed roster lands in the seventies or above; a sideways one comes back
+    // in the thirties, so there is a lot of room between them and this sits in the middle
+    // of it. Costing an occasional needless orientation search is the cheaper mistake:
+    // that is a few seconds, where the other way round is a screen of gibberish.
+    var UPRIGHT_ENOUGH = 60;
+
+    // Longest edge for the orientation probes. Which way up a page is is a far coarser
+    // question than what it says, and is settled well below the size needed to read it —
+    // so the probes run small and only the winner is read properly.
+    var PROBE_EDGE = 500;
+
     var LIB = '/lib/tesseract/';
     var busyNow = false;
+
+    // What the progress bar is currently narrating. A read can take several passes, and a
+    // bar that says "Reading the roster" four times over reads as a hang.
+    var phase = 'Reading the roster';
 
     // ── diagnostics ─────────────────────────────────────────────────────────
 
@@ -473,6 +489,9 @@
         say('Opening the photo…');
         setProgress(0.02);
 
+        // Reset, so a second photo does not inherit the last one's narration.
+        phase = 'Reading the roster';
+
         downscale(file).then(function (dataUrl) {
             showBusy(dataUrl);
             say('Loading the reader… this part happens once.');
@@ -566,36 +585,69 @@
             ? (facts && facts.orientation > 1 ? 'left to the decoder' : 'none needed')
             : 'turned here, orientation ' + turn);
 
-        // Scale is measured against the image the right way up, so a portrait photo is not
-        // sized as if it were landscape.
-        var turnedWidth = turn === 1 ? width : height;
-        var turnedHeight = turn === 1 ? height : width;
-        var scale = Math.min(1, MAX_EDGE / Math.max(turnedWidth, turnedHeight));
-
-        var drawWidth = Math.round(width * scale);
-        var drawHeight = Math.round(height * scale);
-
-        var canvas = document.createElement('canvas');
-        canvas.width = Math.round(turnedWidth * scale);
-        canvas.height = Math.round(turnedHeight * scale);
-
-        var context = canvas.getContext('2d');
-
-        if (turn === 6) {
-            context.translate(canvas.width, 0);
-            context.rotate(Math.PI / 2);
-        } else if (turn === 8) {
-            context.translate(0, canvas.height);
-            context.rotate(-Math.PI / 2);
-        }
-
-        context.drawImage(source, 0, 0, drawWidth, drawHeight);
+        // 6 and 8 are the quarter turns clockwise and anticlockwise. Everything downstream
+        // works in degrees, because the orientation search has no EXIF to talk about.
+        var canvas = turned(source, turn === 6 ? 90 : turn === 8 ? 270 : 0, MAX_EDGE);
 
         if (source.close) source.close();
 
         note('read at', canvas.width + '×' + canvas.height);
 
         return canvas.toDataURL('image/png');
+    }
+
+    // Draws a source onto a canvas turned by a quarter of a circle at a time, scaled so its
+    // longest edge lands on maxEdge. Shared by the EXIF correction above and the
+    // orientation search below, which want exactly the same thing for different reasons.
+    function turned(source, degrees, maxEdge) {
+        var width = source.width || source.naturalWidth;
+        var height = source.height || source.naturalHeight;
+
+        // Scale is measured against the image the right way up, so a page that is about to
+        // be stood upright is not sized as if it were still on its side.
+        var swap = degrees === 90 || degrees === 270;
+        var uprightWidth = swap ? height : width;
+        var uprightHeight = swap ? width : height;
+        var scale = Math.min(1, maxEdge / Math.max(uprightWidth, uprightHeight));
+
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(uprightWidth * scale);
+        canvas.height = Math.round(uprightHeight * scale);
+
+        var context = canvas.getContext('2d');
+
+        if (degrees === 90) {
+            context.translate(canvas.width, 0);
+            context.rotate(Math.PI / 2);
+        } else if (degrees === 180) {
+            context.translate(canvas.width, canvas.height);
+            context.rotate(Math.PI);
+        } else if (degrees === 270) {
+            context.translate(0, canvas.height);
+            context.rotate(-Math.PI / 2);
+        }
+
+        context.drawImage(source, 0, 0, Math.round(width * scale), Math.round(height * scale));
+
+        return canvas;
+    }
+
+    // Reopens a data: URL as an image, so an already-processed photo can be turned again
+    // without going back to the file and redoing the decode.
+    function loadImage(dataUrl) {
+        return new Promise(function (resolve, reject) {
+            var img = new Image();
+
+            img.onload = function () { resolve(img); };
+            img.onerror = function () { reject(new Error('The image could not be reopened.')); };
+            img.src = dataUrl;
+        });
+    }
+
+    function turnedDataUrl(dataUrl, degrees, maxEdge) {
+        return loadImage(dataUrl).then(function (img) {
+            return turned(img, degrees, maxEdge).toDataURL('image/png');
+        });
     }
 
     // For browsers without createImageBitmap. A data: URL on an <img> is allowed by the
@@ -724,7 +776,11 @@
         return enginePromise;
     }
 
-    function recognise(dataUrl) {
+    // One worker for however many passes the read turns out to need. createWorker
+    // re-initialises the WebAssembly core every time it is called, and the orientation
+    // search below can want five reads — paying that five times would cost more than the
+    // reads themselves.
+    function withWorker(job) {
         // Every path is pinned to this origin. tesseract.js otherwise reaches for a CDN
         // for the core and the language data, which the Content-Security-Policy blocks —
         // correctly, since it would be a third party reading the roster.
@@ -737,18 +793,89 @@
             workerBlobURL: false,
             logger: onProgress
         }).then(function (worker) {
-            return worker.recognize(dataUrl).then(function (result) {
-                // Confidence is the number that separates "the page was sideways" from
-                // "the page was blurred". Tesseract reports it per read; below about 60
-                // on a printed sheet means it was not reading printed text at all.
-                note('confidence', Math.round(result.data.confidence));
-                note('characters read', (result.data.text || '').length);
-
-                return worker.terminate().then(function () {
-                    return result.data.text;
-                });
+            return job(worker).then(function (value) {
+                return worker.terminate().then(function () { return value; });
             }).catch(function (error) {
                 return worker.terminate().then(function () { throw error; });
+            });
+        });
+    }
+
+    function read(worker, dataUrl) {
+        return worker.recognize(dataUrl).then(function (result) {
+            return { text: result.data.text || '', confidence: result.data.confidence };
+        });
+    }
+
+    function recognise(dataUrl) {
+        return withWorker(function (worker) {
+            return read(worker, dataUrl).then(function (first) {
+                // Confidence is the number that separates "the page was sideways" from
+                // "the page was blurred". Tesseract reports it per read; below about 60 on
+                // a printed sheet means it was not reading printed text at all.
+                note('confidence', Math.round(first.confidence));
+                note('characters read', first.text.length);
+
+                if (first.confidence >= UPRIGHT_ENOUGH) return first.text;
+
+                return findUpright(worker, dataUrl, first);
+            });
+        });
+    }
+
+    // Works out which way up the page is, by reading it every way up and believing the
+    // one tesseract was most sure of.
+    //
+    // EXIF is the cheap answer and it is tried first, back in toDataUrl — but it only
+    // exists when the camera wrote a tag, and a roster photographed sideways on a table
+    // has nothing to write. The pixels are then the only evidence there is.
+    //
+    // Tesseract can be asked directly: osd.traineddata detects page orientation without
+    // reading a word. It is 4.3 MB gzipped, which is over twice the entire English
+    // language data, and it would still only be a hint — a wrong one would have to be
+    // caught by re-reading anyway, so it removes no work, it only reorders it. This app
+    // ships one core variant instead of eight and the fast language data instead of the
+    // accurate one, both to save less than that. So the probes do the job instead.
+    //
+    // They are cheap because they are small. Orientation is a much coarser question than
+    // transcription — upright text scores far above sideways text long before either is
+    // legible — so the probes run at PROBE_EDGE, where a pass costs a fraction of a real
+    // read. Only the winner is then read properly.
+    function findUpright(worker, dataUrl, first) {
+        var best = { degrees: 0, confidence: -1 };
+
+        phase = 'Working out which way up the page is';
+
+        return [0, 90, 180, 270].reduce(function (chain, degrees) {
+            return chain.then(function () {
+                return turnedDataUrl(dataUrl, degrees, PROBE_EDGE).then(function (probe) {
+                    return read(worker, probe).then(function (result) {
+                        note('probe at ' + degrees + '°', 'confidence ' + Math.round(result.confidence));
+
+                        if (result.confidence > best.confidence) {
+                            best = { degrees: degrees, confidence: result.confidence };
+                        }
+                    });
+                });
+            });
+        }, Promise.resolve()).then(function () {
+            note('upright at', best.degrees + '°');
+
+            // Already the right way up, so the first read is the best there is and the
+            // page was simply hard to read. Saying so beats turning it for no reason.
+            if (best.degrees === 0) return first.text;
+
+            phase = 'Reading it again the right way up';
+
+            return turnedDataUrl(dataUrl, best.degrees, MAX_EDGE).then(function (turned) {
+                return read(worker, turned).then(function (second) {
+                    note('confidence after turning', Math.round(second.confidence));
+
+                    // The probes are small and can be wrong. This cannot make the result
+                    // worse than not having tried: the full read has to actually beat the
+                    // one it is replacing.
+                    return second.confidence > first.confidence ? second.text : first.text;
+                });
             });
         });
     }
@@ -761,7 +888,7 @@
         // a multi-megabyte download and then races, which reads as a hang.
         if (message.status === 'recognizing text') {
             setProgress(0.35 + message.progress * 0.65);
-            say('Reading the roster… ' + Math.round(message.progress * 100) + '%');
+            say(phase + '… ' + Math.round(message.progress * 100) + '%');
         } else {
             setProgress(0.06 + message.progress * 0.29);
             say('Loading the reader… this part happens once.');
