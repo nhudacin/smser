@@ -155,6 +155,30 @@
                         </div>
                     </div>
 
+                    @*
+                        The paste fallback, and on an iPhone the only paste that works.
+
+                        Reading the clipboard is a request the browser may decline, and
+                        Safari declines it in the least useful way available: it hands back
+                        an item and then describes it as holding nothing at all. Pasting
+                        *into* something is the older route and the one iOS has always
+                        supported — but a paste needs an editable element to land in, and
+                        this panel had none. This is that element and nothing else.
+
+                        Revealed only once the Paste a photo button has already failed, so
+                        the ordinary path stays one tap and this never shows up for anyone
+                        it would only puzzle.
+                    *@
+                    <div class="photo-paste" data-photo-paste-fallback hidden>
+                        <p class="hint">
+                            Your browser would not hand the clipboard over. Tap the box below,
+                            then choose <strong>Paste</strong>.
+                        </p>
+                        <div class="photo-paste-target" data-photo-paste-target
+                             contenteditable="true" role="textbox"
+                             aria-label="Paste the photo here"></div>
+                    </div>
+
                     @* Says where the text lands, because the tab that reads it is not the
                        tab it lands on. *@
                     <p class="hint">
