@@ -144,6 +144,56 @@ public class PhotoImportWiringTests
     }
 
     [TestMethod]
+    public void The_diagnostics_panel_ships_hidden()
+    {
+        // It is a debugging aid, not part of the app. Shipping it visible would put a wall
+        // of user-agent strings and byte counts under the roster form for everybody.
+        Assert.IsTrue(
+            Regex.IsMatch(_page, @"data-photo-debug hidden"),
+            "the diagnostics panel must render with the hidden attribute");
+    }
+
+    [TestMethod]
+    public async Task The_diagnostics_are_opt_in()
+    {
+        // Revealed by ?debug=1 and nothing else. The check is a literal in the script, so a
+        // rename that left the markup behind would silently turn diagnostics off for good —
+        // and the only way anyone would find out is the next time they were needed.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "debug=1",
+            "nothing in the script reveals the diagnostics panel");
+    }
+
+    [TestMethod]
+    public async Task Diagnostics_do_not_import_over_themselves()
+    {
+        // Import is a form post, so it navigates — and everything the diagnostics recorded
+        // goes with the old document. Auto-importing would wipe the log at the exact moment
+        // it became worth reading, which is the whole reason the panel exists.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "if (DEBUG) {",
+            "the finished read must stop short of Import while diagnostics are on");
+    }
+
+    [TestMethod]
+    public async Task The_photo_is_turned_upright_when_the_decoder_did_not()
+    {
+        // A decoder is free to accept imageOrientation: 'from-image' and ignore it, which
+        // hands the OCR a page lying on its side — and that fails as gibberish rather than
+        // as an error, so nothing else notices. Only a phone writes the tag, which is why
+        // this can only ever go wrong on the device hardest to debug.
+        var script = await _app.GetPageAsync("/js/photo-ocr.js");
+
+        StringAssert.Contains(script, "readJpegHeader",
+            "nothing reads the stored orientation, so nothing can tell whether the " +
+            "decoder applied it");
+        StringAssert.Contains(script, "context.rotate(",
+            "the orientation is read but never acted on");
+    }
+
+    [TestMethod]
     public async Task The_script_still_listens_for_a_pasted_image()
     {
         // The hint above and this listener are two halves of one feature, and only one of

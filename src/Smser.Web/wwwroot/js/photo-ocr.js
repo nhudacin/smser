@@ -49,6 +49,58 @@
     var LIB = '/lib/tesseract/';
     var busyNow = false;
 
+    // ── diagnostics ─────────────────────────────────────────────────────────
+
+    // Off unless asked for by hand: /new?debug=1.
+    //
+    // The photo path is the one part of this app that cannot be tested from the server or
+    // from a unit test — it is a camera, a decoder and a WebAssembly engine, and the three
+    // of them disagree by browser. When it goes wrong on somebody's phone the only honest
+    // way to find out why has been to guess, and every guess costs a round trip.
+    //
+    // So this writes down what actually happened and shows it on the page. It is not a
+    // console log: the phone where this breaks is the phone with no console attached.
+    //
+    // Nothing is sent anywhere. The photo never leaves the device — that is the whole
+    // reason the OCR runs locally — and neither does this, until the person reads it and
+    // decides to copy it.
+    var DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(window.location.search);
+
+    var debugPanel = document.querySelector('[data-photo-debug]');
+    var debugLog = document.querySelector('[data-photo-debug-log]');
+    var debugCopy = document.querySelector('[data-photo-debug-copy]');
+    var notes = [];
+
+    if (DEBUG && debugPanel) debugPanel.hidden = false;
+
+    function note(label, value) {
+        if (!DEBUG) return;
+
+        notes.push(label + ': ' + value);
+        if (debugLog) debugLog.value = notes.join('\n');
+    }
+
+    if (debugCopy && debugLog) {
+        debugCopy.addEventListener('click', function () {
+            // select() first and unconditionally: on iOS the Clipboard API is the part most
+            // likely to be broken here, and if it is, the text is at least already selected
+            // for a long-press Copy.
+            debugLog.select();
+
+            if (!navigator.clipboard) return;
+            navigator.clipboard.writeText(debugLog.value).then(function () {
+                debugCopy.textContent = 'Copied';
+            }, function () {
+                debugCopy.textContent = 'Select all above and copy';
+            });
+        });
+    }
+
+    note('page', window.location.pathname);
+    note('user agent', window.navigator.userAgent);
+    note('createImageBitmap', typeof createImageBitmap === 'function' ? 'yes' : 'no');
+    note('clipboard read', navigator.clipboard && navigator.clipboard.read ? 'yes' : 'no');
+
     // ── tabs ────────────────────────────────────────────────────────────────
 
     var tabButtons = tabs.querySelectorAll('[data-import-tab]');
@@ -213,7 +265,15 @@
             reading = Promise.reject(error);
         }
 
-        reading.then(imageFromClipboard).then(function (file) {
+        reading.then(function (items) {
+            note('clipboard items', items.length);
+
+            for (var i = 0; i < items.length; i++) {
+                note('clipboard item ' + (i + 1), (items[i].types || []).join(', ') || 'no types');
+            }
+
+            return imageFromClipboard(items);
+        }).then(function (file) {
             if (!file) {
                 showBusy('');
                 fail('Nothing on the clipboard looked like an image. Copy a photo first, ' +
@@ -222,7 +282,10 @@
             }
 
             start(file);
-        }).catch(function () {
+        }).catch(function (error) {
+            note('clipboard error', (error && error.name ? error.name : 'unknown') +
+                ' — ' + (error && error.message ? error.message : 'no message'));
+
             showBusy('');
 
             // Every failure here is the same failure from where the person is standing:
@@ -349,25 +412,101 @@
     // is not optional: a portrait photo off a phone carries its rotation in EXIF, and
     // ignoring it hands the OCR a sideways page, which reads as no text at all.
     function downscale(file) {
+        note('file', file.type + ', ' + file.size + ' bytes');
+
+        // The bytes are read for their header before the image is decoded, because what
+        // the header says is the only way to tell afterwards whether the decoder did what
+        // it was asked. A failure here is not fatal — it costs the rotation check, not
+        // the import.
+        return bytes(file).catch(function () { return null; }).then(function (buffer) {
+            var facts = buffer ? readJpegHeader(buffer) : null;
+
+            if (facts) {
+                note('exif orientation', facts.orientation);
+                note('stored size', facts.width + '×' + facts.height);
+            } else {
+                note('exif orientation', 'no JPEG header to read');
+            }
+
+            return decode(file).then(function (source) { return toDataUrl(source, facts); });
+        });
+    }
+
+    function decode(file) {
         if (typeof createImageBitmap === 'function') {
             return createImageBitmap(file, { imageOrientation: 'from-image' })
-                .then(toDataUrl)
-                .catch(function () { return viaFileReader(file); });
+                .then(function (bitmap) {
+                    note('decoder', 'createImageBitmap');
+                    return bitmap;
+                })
+                .catch(function () {
+                    note('decoder', 'createImageBitmap threw, fell back to FileReader');
+                    return viaFileReader(file);
+                });
         }
+
+        note('decoder', 'no createImageBitmap, using FileReader');
         return viaFileReader(file);
     }
 
-    function toDataUrl(source) {
+    function toDataUrl(source, facts) {
         var width = source.width || source.naturalWidth;
         var height = source.height || source.naturalHeight;
-        var scale = Math.min(1, MAX_EDGE / Math.max(width, height));
+
+        note('decoded size', width + '×' + height);
+
+        // Did the decoder apply the rotation it was asked for?
+        //
+        // It does not say, and asking is not the same as being obeyed: a decoder is free
+        // to accept `imageOrientation: 'from-image'` and ignore it, which hands the OCR a
+        // page lying on its side. That fails as gibberish rather than as an error, so
+        // nothing upstream notices — and it can only happen with a photo off a phone,
+        // because a phone is the only thing that writes the tag.
+        //
+        // The stored dimensions settle it. Orientations 6 and 8 are the quarter turns, so
+        // if the decode came back with width and height still in the order the file stores
+        // them, nothing was rotated and this has to do it.
+        //
+        // Only those two. 2, 3 and 4 are the flips and the half turn, none of which change
+        // the dimensions — so there is no way to tell from here whether the decoder already
+        // acted, and guessing wrong would turn a correct page upside down. 5 and 7 are the
+        // transposes, which no camera emits. They are reported and left alone.
+        var quarterTurn = facts && (facts.orientation === 6 || facts.orientation === 8);
+        var asStored = facts && facts.width > 0 && width === facts.width && height === facts.height;
+        var turn = quarterTurn && asStored ? facts.orientation : 1;
+
+        note('rotation', turn === 1
+            ? (facts && facts.orientation > 1 ? 'left to the decoder' : 'none needed')
+            : 'turned here, orientation ' + turn);
+
+        // Scale is measured against the image the right way up, so a portrait photo is not
+        // sized as if it were landscape.
+        var turnedWidth = turn === 1 ? width : height;
+        var turnedHeight = turn === 1 ? height : width;
+        var scale = Math.min(1, MAX_EDGE / Math.max(turnedWidth, turnedHeight));
+
+        var drawWidth = Math.round(width * scale);
+        var drawHeight = Math.round(height * scale);
 
         var canvas = document.createElement('canvas');
-        canvas.width = Math.round(width * scale);
-        canvas.height = Math.round(height * scale);
-        canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+        canvas.width = Math.round(turnedWidth * scale);
+        canvas.height = Math.round(turnedHeight * scale);
+
+        var context = canvas.getContext('2d');
+
+        if (turn === 6) {
+            context.translate(canvas.width, 0);
+            context.rotate(Math.PI / 2);
+        } else if (turn === 8) {
+            context.translate(0, canvas.height);
+            context.rotate(-Math.PI / 2);
+        }
+
+        context.drawImage(source, 0, 0, drawWidth, drawHeight);
 
         if (source.close) source.close();
+
+        note('read at', canvas.width + '×' + canvas.height);
 
         return canvas.toDataURL('image/png');
     }
@@ -381,13 +520,105 @@
 
             reader.onload = function () {
                 var img = new Image();
-                img.onload = function () { resolve(toDataUrl(img)); };
+                img.onload = function () { resolve(img); };
                 img.onerror = function () { reject(new Error('The file could not be opened as an image.')); };
                 img.src = reader.result;
             };
             reader.onerror = function () { reject(new Error('The file could not be read.')); };
             reader.readAsDataURL(file);
         });
+    }
+
+    // Just the head. EXIF lives in the first APP1 segment and cannot exceed 64 KB, and the
+    // frame header follows close behind it, so there is no reason to hold a second copy of
+    // a five megapixel photo in memory to read a handful of bytes.
+    function bytes(file) {
+        var head = file.slice ? file.slice(0, 256 * 1024) : file;
+
+        if (head.arrayBuffer) return head.arrayBuffer();
+
+        return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+
+            reader.onload = function () { resolve(reader.result); };
+            reader.onerror = function () { reject(new Error('The file could not be read.')); };
+            reader.readAsArrayBuffer(head);
+        });
+    }
+
+    // The two facts that decide whether a decode came back rotated: the orientation tag,
+    // and the size the frame header declares. Small enough to read by hand, and reading it
+    // by hand is cheaper than a library for a photo that never leaves this device anyway.
+    function readJpegHeader(buffer) {
+        var view = new DataView(buffer);
+
+        if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return null;
+
+        var facts = { orientation: 1, width: 0, height: 0 };
+        var offset = 2;
+
+        while (offset + 4 <= view.byteLength) {
+            if (view.getUint8(offset) !== 0xFF) { offset++; continue; }
+
+            var marker = view.getUint8(offset + 1);
+
+            // Padding and the standalone markers, none of which carry a length.
+            if (marker === 0xFF || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD9)) {
+                offset += 2;
+                continue;
+            }
+
+            // Start of scan. Compressed data from here on, and nothing left worth reading.
+            if (marker === 0xDA) break;
+
+            var length = view.getUint16(offset + 2);
+            if (length < 2) break;
+
+            if (marker === 0xE1) readOrientation(view, offset + 4, facts);
+
+            // A start-of-frame marker carries the stored dimensions. The Huffman and
+            // arithmetic-coding tables share the 0xC0-0xCF range and are not frames.
+            if (marker >= 0xC0 && marker <= 0xCF &&
+                marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC &&
+                offset + 9 <= view.byteLength) {
+                facts.height = view.getUint16(offset + 5);
+                facts.width = view.getUint16(offset + 7);
+            }
+
+            offset += 2 + length;
+        }
+
+        return facts;
+    }
+
+    // "Exif\0\0", then a TIFF header that declares the byte order everything after it uses
+    // — including, on the same phones that write the orientation tag, big-endian.
+    function readOrientation(view, start, facts) {
+        if (start + 14 > view.byteLength) return;
+        if (view.getUint32(start) !== 0x45786966) return;
+
+        var tiff = start + 6;
+        var order = view.getUint16(tiff);
+        var little = order === 0x4949;
+
+        if (!little && order !== 0x4D4D) return;
+        if (view.getUint16(tiff + 2, little) !== 42) return;
+
+        var ifd = tiff + view.getUint32(tiff + 4, little);
+        if (ifd + 2 > view.byteLength) return;
+
+        var count = view.getUint16(ifd, little);
+
+        for (var i = 0; i < count; i++) {
+            var entry = ifd + 2 + i * 12;
+            if (entry + 12 > view.byteLength) return;
+
+            if (view.getUint16(entry, little) === 0x0112) {
+                var value = view.getUint16(entry + 8, little);
+                if (value >= 1 && value <= 8) facts.orientation = value;
+                return;
+            }
+        }
     }
 
     var enginePromise = null;
@@ -420,6 +651,12 @@
             logger: onProgress
         }).then(function (worker) {
             return worker.recognize(dataUrl).then(function (result) {
+                // Confidence is the number that separates "the page was sideways" from
+                // "the page was blurred". Tesseract reports it per read; below about 60
+                // on a printed sheet means it was not reading printed text at all.
+                note('confidence', Math.round(result.data.confidence));
+                note('characters read', (result.data.text || '').length);
+
                 return worker.terminate().then(function () {
                     return result.data.text;
                 });
@@ -459,6 +696,16 @@
         // Appended rather than assigned: someone may have pasted part of the roster
         // already, and photographing the second page should not wipe the first.
         rawText.value = rawText.value.trim() ? rawText.value.replace(/\s+$/, '') + '\n' + cleaned : cleaned;
+
+        note('first line read', cleaned.split('\n')[0]);
+
+        // Diagnostics stop here rather than importing, and that is the point of them.
+        // Import is a form post: it navigates, and everything written down above goes with
+        // the old document. Whoever asked for ?debug=1 wants to read it.
+        if (DEBUG) {
+            say('Read the photo. Diagnostics are below — press Import when you have copied them.');
+            return;
+        }
 
         say('Read the photo. Checking it for numbers…');
 
