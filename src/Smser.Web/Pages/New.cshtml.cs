@@ -82,6 +82,13 @@ public class NewModel : PageModel
 
     public bool HasResult => SmsUrl is not null;
 
+    /// <summary>
+    /// Fragment the save redirects to, and the id on the result container. Shared so the
+    /// two cannot drift: a redirect to an anchor that no longer exists fails silently by
+    /// leaving you at the top of the page, which is exactly the bug this was added to fix.
+    /// </summary>
+    public const string ResultAnchor = "result";
+
     public class InputModel
     {
         /// <summary>
@@ -233,14 +240,26 @@ public class NewModel : PageModel
             _logger.LogInformation("Updated roster {RosterId} with {NumberCount} numbers", existing, numbers.Count);
             RecordRosterEvent(VisitEvents.RosterUpdated, existing, numbers.Count);
 
-            return RedirectToPage(new { id = existing });
+            // Redirected to the result rather than the top of the page. Below 900px the
+            // panel is stacked underneath the whole form, so landing at the top after a
+            // save shows you the form you just finished and nothing you asked for. The
+            // fragment is unconditional; site.css decides what it means per width, because
+            // on a two-column layout the panel is already on screen and a jump would be
+            // the wrong answer.
+            return RedirectToPage(pageName: null, pageHandler: null, routeValues: new { id = existing }, fragment: ResultAnchor);
         }
 
         var saved = await _store.CreateAsync(groupName, rawText, numbers, cancellationToken);
         _logger.LogInformation("Created roster {RosterId} with {NumberCount} numbers", saved.Id, numbers.Count);
         RecordRosterEvent(VisitEvents.RosterCreated, saved.Id, numbers.Count);
 
-        return RedirectToPage(new { id = saved.Id });
+        // Redirected to the result rather than the top of the page. Below 900px the
+        // panel is stacked underneath the whole form, so landing at the top after a
+        // save shows you the form you just finished and nothing you asked for. The
+        // fragment is unconditional; site.css decides what it means per width, because
+        // on a two-column layout the panel is already on screen and a jump would be
+        // the wrong answer.
+        return RedirectToPage(pageName: null, pageHandler: null, routeValues: new { id = saved.Id }, fragment: ResultAnchor);
     }
 
     /// <summary>
