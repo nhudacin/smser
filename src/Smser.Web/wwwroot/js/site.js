@@ -26,6 +26,13 @@
         // for manual copying beats a button that silently does nothing.
         if (!navigator.clipboard) {
             button.hidden = true;
+
+            // Hiding the button alone would leave "Coming back to change this list later?"
+            // standing over nothing, so the whole block goes. The prompt only makes sense
+            // as a label for the control it introduces.
+            var keep = button.closest('[data-result-keep]');
+            if (keep) keep.hidden = true;
+
             return;
         }
 
