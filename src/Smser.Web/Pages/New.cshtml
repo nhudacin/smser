@@ -328,7 +328,7 @@
             var plural = Model.Numbers.Count == 1 ? "" : "s";
             var named = !string.IsNullOrWhiteSpace(Model.Input.GroupName);
 
-            <div class="result">
+            <div class="result" id="@NewModel.ResultAnchor">
                 <div class="result-head">
                     <h1>@(named ? $"{Model.Input.GroupName} is ready" : "Your list is ready")</h1>
                     <p class="result-count">@Model.Numbers.Count number@(plural)</p>

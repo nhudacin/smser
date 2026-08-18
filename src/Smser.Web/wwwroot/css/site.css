@@ -629,6 +629,23 @@ code {
  * the fine pointer puts the card back on top with `order`. */
 .result { display: flex; flex-direction: column; }
 
+/* Where a save lands.
+ *
+ * Generate posts and redirects, and a redirect drops you at the top of the document.
+ * Stacked — under 900px — that is the top of the form you have just finished, with the
+ * link you asked for somewhere below the fold. So the redirect carries a #result
+ * fragment and this is the landing offset. */
+#result { scroll-margin-top: 16px; }
+
+@media (min-width: 900px) {
+    /* Two columns: the panel is already beside the form and on screen, so the same
+     * fragment must not move the page at all. A scroll margin taller than the viewport
+     * puts the target scroll position above the start of the document, which the browser
+     * clamps back to zero — so the anchor becomes a no-op here rather than a jump past
+     * the header. One fragment, and the layout decides what it means. */
+    #result { scroll-margin-top: 100vh; }
+}
+
 .result-head h1 { margin: 0 0 6px; }
 .result-count { margin: 0 0 20px; color: var(--ink-muted); font-size: .9rem; }
 
