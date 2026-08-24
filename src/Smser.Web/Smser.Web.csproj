@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Azure.Data.Tables" Version="13.4.6" />
+    <PackageReference Include="Aspire.Azure.Data.Tables" Version="13.5.2" />
     <!-- PngByteQRCode only, which is managed code with no System.Drawing dependency —
          so this runs unchanged on the Linux App Service plan this is headed for. -->
     <PackageReference Include="QRCoder" Version="1.8.0" />
