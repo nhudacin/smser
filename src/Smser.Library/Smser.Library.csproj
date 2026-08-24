@@ -10,7 +10,7 @@
     <!-- Table Storage only. The parser and link builder are the point of this project
          and have no dependencies at all; keeping the storage client here rather than in
          the web app is what lets the roster round-trip be tested without a host. -->
-    <PackageReference Include="Azure.Data.Tables" Version="12.11.0" />
+    <PackageReference Include="Azure.Data.Tables" Version="12.12.0" />
   </ItemGroup>
 
 </Project>
