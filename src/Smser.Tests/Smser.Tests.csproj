@@ -22,7 +22,7 @@
          that the code is present, which is exactly how a clamp that made the orientation
          search pick the wrong answer passed CI and shipped. Jint is pure managed, so it
          needs no browser and runs on the Linux agent like everything else. -->
-    <PackageReference Include="Jint" Version="4.16.0" />
+    <PackageReference Include="Jint" Version="4.16.4" />
   </ItemGroup>
 
   <ItemGroup>
